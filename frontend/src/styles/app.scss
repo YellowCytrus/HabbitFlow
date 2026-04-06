@@ -1,0 +1,285 @@
+/* Design tokens — aligned with apple_preview.html + liquid glass */
+:root {
+  --hf-black: #1d1d1f;
+  --hf-white: #ffffff;
+  --hf-light-gray: #f5f5f7;
+  --hf-apple-blue: #0071e3;
+  --hf-link-blue: #0066cc;
+  --hf-gray-80: rgba(0, 0, 0, 0.8);
+  --hf-gray-48: rgba(0, 0, 0, 0.48);
+  --hf-border: #d2d2d7;
+  --hf-shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
+  --hf-font-display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica,
+    Arial, sans-serif;
+  --hf-font-text: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  --hf-glass-bg: rgba(255, 255, 255, 0.58);
+  --hf-glass-border: rgba(255, 255, 255, 0.72);
+  --hf-glass-highlight: rgba(255, 255, 255, 0.92);
+  --hf-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --hf-glass-inset: inset 0 1px 0 var(--hf-glass-highlight);
+  --hf-blur: saturate(180%) blur(20px);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--hf-font-text);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.47;
+  letter-spacing: -0.02em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Soft “liquid” ambient layer behind the app */
+.hf-app.v-application {
+  background: transparent !important;
+  font-family: var(--hf-font-text) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.hf-app .hf-liquid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(165deg, #f5f5f7 0%, #ececf2 42%, #e8eef8 100%);
+}
+
+.hf-app .hf-liquid-bg::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  background: radial-gradient(ellipse 55% 45% at 18% 12%, rgba(0, 113, 227, 0.11), transparent 58%),
+    radial-gradient(ellipse 50% 40% at 88% 78%, rgba(41, 151, 255, 0.09), transparent 52%),
+    radial-gradient(ellipse 35% 30% at 50% 100%, rgba(0, 102, 204, 0.06), transparent 55%);
+  animation: hf-liquid-drift 22s ease-in-out infinite;
+}
+
+.hf-app .hf-liquid-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 100% 80% at 50% 120%, rgba(255, 255, 255, 0.45), transparent 45%);
+  opacity: 0.9;
+}
+
+@keyframes hf-liquid-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(1.5%, -0.8%) scale(1.02);
+    opacity: 0.95;
+  }
+  70% {
+    transform: translate(-1%, 0.5%) scale(1.01);
+    opacity: 1;
+  }
+}
+
+.hf-app .v-application__wrap {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* Typography — Display vs body */
+.hf-app .text-h3,
+.hf-app .text-h4,
+.hf-app .text-h5,
+.hf-app .text-h6 {
+  font-family: var(--hf-font-display) !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Liquid glass surfaces (tinted cards keep a frosted wash) */
+.hf-app .v-card {
+  background: var(--hf-glass-bg) !important;
+  backdrop-filter: var(--hf-blur);
+  -webkit-backdrop-filter: var(--hf-blur);
+  border: 1px solid color-mix(in srgb, var(--hf-glass-border) 85%, rgba(0, 0, 0, 0.06)) !important;
+  box-shadow: var(--hf-glass-shadow), var(--hf-glass-inset) !important;
+  transition:
+    box-shadow 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.25s ease;
+}
+
+.hf-app .v-card[class*="primaryContainer"],
+.hf-app .v-card[class*="primary-container"] {
+  background: rgba(214, 234, 255, 0.62) !important;
+}
+
+.hf-app .v-card[class*="surfaceVariant"],
+.hf-app .v-card[class*="surface-variant"] {
+  background: rgba(250, 250, 252, 0.72) !important;
+}
+
+.hf-app .v-card:hover {
+  box-shadow: var(--hf-shadow-card), var(--hf-glass-inset) !important;
+}
+
+/* Frosted top bar (logged-in shell) */
+.hf-app .hf-app-bar.v-toolbar {
+  background: rgba(255, 255, 255, 0.52) !important;
+  backdrop-filter: var(--hf-blur);
+  -webkit-backdrop-filter: var(--hf-blur);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+}
+
+.hf-app .hf-footer {
+  background: rgba(255, 255, 255, 0.38) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Primary CTA — Apple pill */
+.hf-app .v-btn.bg-primary {
+  border-radius: 980px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  text-transform: none !important;
+}
+
+.hf-app .v-btn.bg-primary {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.hf-app .v-btn.bg-primary:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35);
+}
+
+/* Outlined / tonal — softer glass edge */
+.hf-app .v-btn--variant-outlined {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hf-app .v-btn--variant-tonal {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Text fields — Apple-like focus */
+.hf-app .v-field--variant-outlined .v-field__outline {
+  --v-field-border-opacity: 0.22;
+}
+
+.hf-app .v-field--focused .v-field__outline {
+  --v-field-border-width: 1.5px;
+}
+
+.hf-app .v-field--variant-outlined.v-field--focused {
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+}
+
+/* Lists / dividers */
+.hf-app .v-divider {
+  opacity: 0.55;
+}
+
+/* Alerts */
+.hf-app .v-alert {
+  backdrop-filter: var(--hf-blur);
+  -webkit-backdrop-filter: var(--hf-blur);
+}
+
+/* Dialogs */
+.hf-app .v-overlay__content .v-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+/* Router view transition — keep, Apple-like easing */
+.route-fade-enter-active {
+  transition:
+    opacity 0.32s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.32s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.route-fade-leave-active {
+  transition:
+    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.route-fade-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.route-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Scroll reveal */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-fade-enter-active,
+  .route-fade-leave-active,
+  [data-reveal],
+  .hf-app .hf-liquid-bg::before {
+    transition: none !important;
+    animation: none !important;
+  }
+  .route-fade-enter-from,
+  .route-fade-leave-to,
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Calendar month swap */
+.calendar-swap-enter-active,
+.calendar-swap-leave-active {
+  transition:
+    opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.calendar-swap-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+.calendar-swap-leave-to {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-swap-enter-active,
+  .calendar-swap-leave-active {
+    transition: none;
+  }
+  .calendar-swap-enter-from,
+  .calendar-swap-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Fallback if color-mix unsupported */
+@supports not (background: color-mix(in srgb, white 50%, black)) {
+  .hf-app .v-card {
+    border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  }
+}
