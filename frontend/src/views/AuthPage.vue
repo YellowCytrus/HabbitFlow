@@ -118,9 +118,25 @@
           </v-form>
         </template>
 
-        <div class="d-flex flex-wrap ga-2 justify-center mb-4">
-          <v-btn variant="text" size="small" :href="yandexUrl" class="text-none">Яндекс</v-btn>
-          <v-btn variant="text" size="small" class="text-none" @click="vkStubSnack = true">VK</v-btn>
+        <div class="d-flex flex-wrap ga-3 justify-center align-center mb-4 auth-oauth">
+          <v-btn
+            variant="outlined"
+            size="default"
+            :href="yandexUrl"
+            class="text-none auth-oauth__btn"
+            aria-label="Продолжить с Яндекс"
+          >
+            <img :src="yandexLogo" alt="" class="auth-oauth__logo auth-oauth__logo--yandex" width="88" height="20" />
+          </v-btn>
+          <v-btn
+            variant="outlined"
+            size="default"
+            class="text-none auth-oauth__btn"
+            aria-label="Продолжить с VK"
+            @click="vkStubSnack = true"
+          >
+            <img :src="vkLogo" alt="" class="auth-oauth__logo auth-oauth__logo--vk" width="28" height="28" />
+          </v-btn>
         </div>
 
         <v-snackbar v-model="vkStubSnack" location="bottom" rounded="lg">
@@ -143,6 +159,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { useAuthStore } from "../stores/auth";
+import yandexLogo from "../../icons/yandex-text-logo.svg";
+import vkLogo from "../../icons/vk-logo.svg";
 
 const route = useRoute();
 const router = useRouter();
@@ -299,6 +317,24 @@ function backToRegisterForm() {
 }
 .auth-card {
   border-radius: 20px !important;
+}
+.auth-oauth__btn {
+  min-width: 0;
+  padding-inline: 16px;
+  height: 44px !important;
+}
+.auth-oauth__logo {
+  display: block;
+  object-fit: contain;
+}
+.auth-oauth__logo--yandex {
+  height: 18px;
+  width: auto;
+  max-width: 88px;
+}
+.auth-oauth__logo--vk {
+  height: 28px;
+  width: 28px;
 }
 @media (min-width: 960px) {
   .auth-wrap {
