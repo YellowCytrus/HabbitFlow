@@ -1,0 +1,75 @@
+# Фиксированная подсеть — обходит «all predefined address pools have been fully subnetted».
+networks:
+  habitflow:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
+          gateway: 10.89.0.1
+
+services:
+  db:
+    image: postgres:16-alpine
+    networks:
+      - habitflow
+    environment:
+      POSTGRES_USER: habitflow
+      POSTGRES_PASSWORD: habitflow
+      POSTGRES_DB: habitflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - habitflow_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U habitflow -d habitflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - habitflow
+    # Корневой .env → переменные в контейнере (иначе backend ищет .env в /app/backend и не находит)
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://habitflow:habitflow@db:5432/habitflow
+      JWT_SECRET: ${JWT_SECRET:-dev-change-me-in-production}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      OAUTH_REDIRECT_BASE: ${OAUTH_REDIRECT_BASE:-http://localhost:8000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      - habitflow
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  habitflow_pg:
