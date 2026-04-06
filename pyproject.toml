@@ -20,7 +20,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0"]
+dev = [
+    "pytest>=8.3.0",
+    "testcontainers[postgres]>=4.7.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["backend"]

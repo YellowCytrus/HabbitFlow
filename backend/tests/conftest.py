@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import date
-from typing import Generator
+from typing import Any, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,12 +28,6 @@ import app.security as app_security
 from app.security import create_access_token
 
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql://habitflow:habitflow@127.0.0.1:5432/habitflow_test",
-)
-
-
 def _ensure_database_exists(url: str) -> None:
     u = make_url(url)
     dbname = u.database
@@ -51,21 +45,61 @@ def _ensure_database_exists(url: str) -> None:
             conn.execute(text(f"CREATE DATABASE {ident}"))
 
 
+def _postgres_url_and_container() -> tuple[str, Any]:
+    """Use TEST_DATABASE_URL when set; otherwise start Postgres via testcontainers."""
+    raw = os.environ.get("TEST_DATABASE_URL", "").strip()
+    if raw:
+        return raw, None
+    try:
+        from testcontainers.postgres import PostgresContainer
+    except ImportError as exc:
+        pytest.fail(
+            "Missing testcontainers. Install dev deps: `uv sync --extra dev`. "
+            f"Or set TEST_DATABASE_URL. Import error: {exc}"
+        )
+    container = PostgresContainer(
+        "postgres:16-alpine",
+        username="habitflow",
+        password="habitflow",
+        dbname="habitflow_test",
+    )
+    try:
+        container.start()
+    except Exception as exc:
+        pytest.fail(
+            "Could not start PostgreSQL in Docker (testcontainers). "
+            "Start Docker, or set TEST_DATABASE_URL to a reachable server. "
+            f"Error: {exc}"
+        )
+    return container.get_connection_url(), container
+
+
 @pytest.fixture(scope="session")
 def engine():
+    url, container = _postgres_url_and_container()
+    eng = None
     try:
-        _ensure_database_exists(TEST_DATABASE_URL)
-    except Exception:
-        pass
-    try:
-        eng = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-        with eng.connect() as conn:
-            conn.execute(text("SELECT 1"))
-    except Exception as exc:  # pragma: no cover
-        pytest.skip(f"PostgreSQL not available ({TEST_DATABASE_URL}): {exc}")
-    Base.metadata.create_all(bind=eng)
-    yield eng
-    Base.metadata.drop_all(bind=eng)
+        try:
+            _ensure_database_exists(url)
+        except Exception:
+            pass
+        try:
+            eng = create_engine(url, pool_pre_ping=True)
+            with eng.connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception as exc:
+            pytest.fail(
+                f"PostgreSQL connection failed ({url!r}): {exc}. "
+                "Fix TEST_DATABASE_URL or ensure Docker can pull/run postgres:16-alpine."
+            )
+        Base.metadata.create_all(bind=eng)
+        yield eng
+    finally:
+        if eng is not None:
+            Base.metadata.drop_all(bind=eng)
+            eng.dispose()
+        if container is not None:
+            container.stop()
 
 
 def _truncate_all(conn) -> None:
