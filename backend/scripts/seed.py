@@ -1,4 +1,4 @@
-"""Insert sample users, habits, and logs. Run: cd backend && python -m scripts.seed"""
+"""Insert sample data for local development. Run: cd backend && python -m scripts.seed"""
 
 from datetime import date, timedelta
 
@@ -17,6 +17,39 @@ from app.models import (
     UserSubscription,
 )
 from app.security import hash_password
+
+
+ALINA_EMAIL = "alina@example.com"
+
+
+def _status_for_day(day: date, habit_kind: str) -> HabitLogStatus:
+    """Deterministic pseudo-random status distribution without extra deps."""
+    score = day.toordinal() % 10
+    if habit_kind == "daily":
+        if score in (0, 7):
+            return HabitLogStatus.missed
+        if score in (3,):
+            return HabitLogStatus.micro
+        return HabitLogStatus.full
+    if habit_kind == "weekdays":
+        if score in (1,):
+            return HabitLogStatus.missed
+        if score in (5,):
+            return HabitLogStatus.micro
+        return HabitLogStatus.full
+    # 3x/week
+    if score in (2, 8):
+        return HabitLogStatus.micro
+    return HabitLogStatus.full
+
+
+def _should_log_on_day(day: date, habit_kind: str) -> bool:
+    if habit_kind == "daily":
+        return True
+    if habit_kind == "weekdays":
+        return day.weekday() < 5
+    # 3x/week: Mon/Wed/Fri
+    return day.weekday() in (0, 2, 4)
 
 
 def main() -> None:
@@ -46,96 +79,111 @@ def main() -> None:
                 ]
             )
 
-        users_data = [
-            ("alice@example.com", "alice_secret_1", "Alice"),
-            ("bob@example.com", "bob_secret_2", "Bob"),
-            ("carol@example.com", "carol_secret_3", "Carol"),
-        ]
-        created_users: list[User] = []
-        for email, pw, name in users_data:
-            u = db.query(User).filter(User.email == email).first()
-            if u is None:
-                u = User(
-                    email=email,
-                    password_hash=hash_password(pw),
-                    name=name,
-                    role=UserRole.user,
-                    is_active=True,
-                    is_verified=True,
-                    verification_token=None,
+        alina = db.query(User).filter(User.email == ALINA_EMAIL).first()
+        if alina is None:
+            alina = User(
+                email=ALINA_EMAIL,
+                password_hash=hash_password("123"),
+                name="Алина",
+                role=UserRole.user,
+                is_active=True,
+                is_verified=True,
+                verification_token=None,
+            )
+            db.add(alina)
+            db.flush()
+
+        if alina.notification_settings is None:
+            db.add(
+                NotificationSettings(
+                    user_id=alina.id,
+                    global_enabled=True,
+                    reminder_tone=ReminderTone.soft,
+                    user_timezone="Europe/Moscow",
                 )
-                db.add(u)
-                db.flush()
-                db.add(
-                    NotificationSettings(
-                        user_id=u.id,
-                        global_enabled=True,
-                        reminder_tone=ReminderTone.neutral,
-                    )
+            )
+
+        if alina.subscription is None:
+            db.add(
+                UserSubscription(
+                    user_id=alina.id,
+                    plan=SubscriptionPlan.free,
+                    start_date=date.today() - timedelta(days=90),
+                    auto_renew=False,
                 )
-                db.add(
-                    UserSubscription(
-                        user_id=u.id,
-                        plan=SubscriptionPlan.free,
-                        start_date=date.today(),
-                        auto_renew=False,
-                    )
-                )
-            created_users.append(u)
+            )
 
         db.commit()
-        for u in created_users:
-            db.refresh(u)
+        db.refresh(alina)
 
-        alice = db.query(User).filter(User.email == "alice@example.com").first()
-        if alice and db.query(Habit).filter(Habit.user_id == alice.id).count() == 0:
-            h1 = Habit(
-                user_id=alice.id,
-                title="Morning stretch",
-                main_goal="Feel awake and flexible",
-                micro_step="One minute of neck rolls",
-                adaptive_reminder=False,
-                recurrence_rule={"type": "daily"},
-                deadline_type=DeadlineType.slot,
-                deadline_value="morning",
-            )
-            h2 = Habit(
-                user_id=alice.id,
-                title="Read",
-                main_goal="Read 20 pages",
-                micro_step="Read one paragraph",
-                adaptive_reminder=True,
-                recurrence_rule={"type": "weekly", "days": [1, 3, 5]},
-                deadline_type=DeadlineType.exact,
-                deadline_value="19:00-21:00",
-            )
-            h3 = Habit(
-                user_id=alice.id,
-                title="Tidy desk",
-                main_goal="Clear workspace",
-                micro_step=None,
-                adaptive_reminder=False,
-                recurrence_rule={"type": "daily"},
-                deadline_type=DeadlineType.slot,
-                deadline_value="evening",
-            )
-            db.add_all([h1, h2, h3])
+        habits = db.query(Habit).filter(Habit.user_id == alina.id).all()
+        if not habits:
+            habits = [
+                Habit(
+                    user_id=alina.id,
+                    title="Утренняя зарядка",
+                    main_goal="15 минут движения для энергии с утра",
+                    micro_step="2 минуты лёгкой разминки",
+                    adaptive_reminder=True,
+                    recurrence_rule={"type": "daily"},
+                    deadline_type=DeadlineType.slot,
+                    deadline_value="morning",
+                ),
+                Habit(
+                    user_id=alina.id,
+                    title="План дня",
+                    main_goal="Составить 3 ключевые задачи на день",
+                    micro_step="Записать хотя бы 1 задачу",
+                    adaptive_reminder=False,
+                    recurrence_rule={"type": "weekly", "days": [1, 2, 3, 4, 5]},
+                    deadline_type=DeadlineType.exact,
+                    deadline_value="08:30-09:30",
+                ),
+                Habit(
+                    user_id=alina.id,
+                    title="Чтение",
+                    main_goal="Читать минимум 20 страниц",
+                    micro_step="Прочитать 2 страницы",
+                    adaptive_reminder=True,
+                    recurrence_rule={"type": "weekly", "days": [1, 3, 5]},
+                    deadline_type=DeadlineType.slot,
+                    deadline_value="evening",
+                ),
+            ]
+            db.add_all(habits)
             db.commit()
-            db.refresh(h1)
-            db.refresh(h2)
-            db.refresh(h3)
+            for habit in habits:
+                db.refresh(habit)
 
+        has_logs = (
+            db.query(HabitLog)
+            .join(Habit, HabitLog.habit_id == Habit.id)
+            .filter(Habit.user_id == alina.id)
+            .first()
+            is not None
+        )
+        if not has_logs:
             today = date.today()
-            for i, h in enumerate([h1, h2, h3]):
-                d0 = today - timedelta(days=2 - i % 2)
-                db.add(HabitLog(habit_id=h.id, log_date=d0, status=HabitLogStatus.full))
-                db.add(
-                    HabitLog(
-                        habit_id=h.id,
-                        log_date=today - timedelta(days=1),
-                        status=HabitLogStatus.micro if i == 0 else HabitLogStatus.full,
+            start_day = today - timedelta(days=89)
+            habit_kind = {
+                habits[0].id: "daily",
+                habits[1].id: "weekdays",
+                habits[2].id: "three_per_week",
+            }
+
+            for i in range(90):
+                log_day = start_day + timedelta(days=i)
+                for habit in habits:
+                    kind = habit_kind[habit.id]
+                    if not _should_log_on_day(log_day, kind):
+                        continue
+                    db.add(
+                        HabitLog(
+                            habit_id=habit.id,
+                            log_date=log_day,
+                            status=_status_for_day(log_day, kind),
+                        )
                     )
-                )
             db.commit()
 
         print("Seed completed.")

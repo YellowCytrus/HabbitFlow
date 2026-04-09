@@ -1,5 +1,9 @@
 # HabitFlow MVP
 
+## Тестовый пользователь для демонстраици работы
+
+На сайте уже зарегистрирован пользователь по имени Алина (логин: `alina@example.com`, пароль: `123`), которая 3 месяца пользовалась приложением.
+
 Web app for habit tracking (FastAPI + Vue 3 + PostgreSQL).
 
 ## Local development
@@ -28,7 +32,7 @@ Web app for habit tracking (FastAPI + Vue 3 + PostgreSQL).
    npm run dev
    ```
 
-4. Optional seed data (requires backend env and DB):
+4. Seed data (requires backend env and DB):
 
    ```bash
    cd backend && PYTHONPATH=. python -m scripts.seed
