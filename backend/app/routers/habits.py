@@ -10,6 +10,7 @@ from app.deps import CurrentUser
 from app.models import Habit, HabitLog, HabitLogStatus, SubscriptionPlan, UserSubscription
 from app.schemas import HabitCreate, HabitDetailOut, HabitLogCreate, HabitLogOut, HabitOut
 from app.services.deadlines import is_micro_allowed, is_within_full_deadline
+from app.services.notification_service import deactivate_habit_notification, sync_habit_notification
 from app.services.recurrence import is_habit_due_on
 from app.services.streak import completion_rate_for_range, compute_streak, count_micro_usage
 
@@ -75,6 +76,8 @@ def create_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, bod
         deadline_value=body.deadline_value,
     )
     db.add(h)
+    db.flush()
+    sync_habit_notification(db, h)
     db.commit()
     db.refresh(h)
     return _habit_out(h)
@@ -97,6 +100,7 @@ def update_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, hab
     h.recurrence_rule = body.recurrence_rule
     h.deadline_type = body.deadline_type
     h.deadline_value = body.deadline_value
+    sync_habit_notification(db, h)
     db.commit()
     db.refresh(h)
     return _habit_out(h)
@@ -105,6 +109,7 @@ def update_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, hab
 @router.delete("/{habit_id}")
 def delete_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, habit_id: UUID):
     h = _get_owned_habit(db, user.id, habit_id)
+    deactivate_habit_notification(db, h.id)
     db.delete(h)
     db.commit()
     return {"success": True}

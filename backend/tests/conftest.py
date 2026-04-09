@@ -106,7 +106,8 @@ def _truncate_all(conn) -> None:
     conn.execute(
         text(
             "TRUNCATE TABLE habit_logs, habits, notification_settings, "
-            "user_subscriptions, pending_registrations, users, messages RESTART IDENTITY CASCADE"
+            "notifications, notification_logs, user_subscriptions, "
+            "pending_registrations, users, messages RESTART IDENTITY CASCADE"
         )
     )
 

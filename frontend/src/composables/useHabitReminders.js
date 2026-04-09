@@ -3,9 +3,16 @@ import { localToday } from "../util/date";
 import { isHabitDueOn } from "../util/recurrence";
 
 const CACHE_MS = 120_000;
-const TICK_MS = 60_000;
+/** Не привязываемся к «целой» минуте: интервал 60 с легко перескакивает нужное время; в фоне вкладки таймеры ещё сильнее дрожат. */
+const TICK_MS = 15_000;
 
 let timerId = null;
+let timezoneSyncDone = false;
+
+function onTabVisibleAgain() {
+  if (typeof document !== "undefined" && document.hidden) return;
+  void tick();
+}
 const cache = {
   habits: [],
   settings: null,
@@ -35,20 +42,36 @@ function isInQuietHours(now, startStr, endStr) {
   return cur >= start || cur < end;
 }
 
-/** @param {string | null | undefined} reminderTimeStr */
-/** @param {Date} now */
-function reminderMatchesNow(reminderTimeStr, now) {
-  if (!reminderTimeStr) return false;
-  const s = String(reminderTimeStr);
-  const h = Number.parseInt(s.slice(0, 2), 10);
-  const m = Number.parseInt(s.slice(3, 5), 10);
+/**
+ * @param {unknown} reminderTime API: "HH:MM:SS" или редко объект времени
+ * @param {Date} now
+ */
+function reminderMatchesNow(reminderTime, now) {
+  if (reminderTime == null || reminderTime === "") return false;
+  let h;
+  let m;
+  if (typeof reminderTime === "object" && reminderTime !== null && "hour" in reminderTime) {
+    const o = /** @type {{ hour?: number; minute?: number }} */ (reminderTime);
+    h = o.hour;
+    m = o.minute ?? 0;
+  } else {
+    const match = /^(\d{1,2}):(\d{2})/.exec(String(reminderTime).trim());
+    if (!match) return false;
+    h = Number.parseInt(match[1], 10);
+    m = Number.parseInt(match[2], 10);
+  }
   if (Number.isNaN(h) || Number.isNaN(m)) return false;
   return now.getHours() === h && now.getMinutes() === m;
 }
 
 /** @param {string} habitId */
 function notifiedKey(habitId) {
-  return `hf_habit_reminder_${habitId}_${localToday()}`;
+  return `hf_habit_reminder_v2_${habitId}_${localToday()}`;
+}
+
+/** @param {string} key */
+function dueNotificationKey(key) {
+  return `hf_due_notification_${key}`;
 }
 
 /** @param {string} tone */
@@ -74,6 +97,19 @@ async function refreshCache() {
   cache.habits = habitsRes.data;
   cache.settings = profileRes.data.settings;
   cache.fetchedAt = Date.now();
+
+  if (!timezoneSyncDone) {
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    if (cache.settings?.user_timezone !== browserTz) {
+      try {
+        await api.put("/api/v1/profile/settings", { user_timezone: browserTz });
+        cache.settings.user_timezone = browserTz;
+      } catch {
+        /* не блокируем напоминания, если таймзону не удалось синхронизировать */
+      }
+    }
+    timezoneSyncDone = true;
+  }
 }
 
 async function tick() {
@@ -97,6 +133,19 @@ async function tick() {
     const today = localToday();
     const todayDate = parseLocalDate(today);
     const tone = cache.settings.reminder_tone || "neutral";
+    const due = await api.get("/api/v1/notifications/due");
+    for (const item of due.data || []) {
+      if (sessionStorage.getItem(dueNotificationKey(item.idempotency_key))) continue;
+      try {
+        new Notification("HabitFlow", {
+          body: item.payload?.body || bodyForTone(tone, item.payload?.title || "Habit"),
+          tag: item.idempotency_key,
+        });
+        sessionStorage.setItem(dueNotificationKey(item.idempotency_key), "1");
+      } catch {
+        /* уведомление не показали — не ставим dedupe */
+      }
+    }
 
     for (const h of cache.habits) {
       if (!h.reminder_time) continue;
@@ -113,11 +162,15 @@ async function tick() {
         continue;
       }
 
-      sessionStorage.setItem(notifiedKey(h.id), "1");
-      new Notification("HabitFlow", {
-        body: bodyForTone(tone, h.title),
-        tag: `habit-${h.id}-${today}`,
-      });
+      try {
+        new Notification("HabitFlow", {
+          body: bodyForTone(tone, h.title),
+          tag: `habit-${h.id}-${today}`,
+        });
+        sessionStorage.setItem(notifiedKey(h.id), "1");
+      } catch {
+        /* уведомление не показали — не ставим dedupe, чтобы повторить на следующем тике */
+      }
     }
   } catch {
     /* offline */
@@ -128,6 +181,8 @@ export function startHabitReminders() {
   if (timerId != null) return;
   void refreshCache().catch(() => {});
   timerId = window.setInterval(() => void tick(), TICK_MS);
+  document.addEventListener("visibilitychange", onTabVisibleAgain);
+  window.addEventListener("focus", onTabVisibleAgain);
   void tick();
 }
 
@@ -136,6 +191,8 @@ export function stopHabitReminders() {
     clearInterval(timerId);
     timerId = null;
   }
+  document.removeEventListener("visibilitychange", onTabVisibleAgain);
+  window.removeEventListener("focus", onTabVisibleAgain);
 }
 
 export function useHabitReminders() {

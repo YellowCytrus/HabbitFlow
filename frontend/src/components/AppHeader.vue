@@ -14,6 +14,7 @@
           Привычка
         </v-btn>
         <v-btn variant="text" :to="{ name: 'profile' }" class="text-none" size="small">Профиль</v-btn>
+        <v-btn variant="text" :to="{ name: 'notifications-test' }" class="text-none" size="small">Тест уведомлений</v-btn>
       </div>
 
       <div class="d-flex align-center ga-2 flex-shrink-0">

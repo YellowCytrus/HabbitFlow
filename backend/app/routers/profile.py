@@ -70,6 +70,8 @@ def update_settings(db: Annotated[Session, Depends(get_db)], user: CurrentUser, 
         s.quiet_hours_end = body.quiet_hours_end
     if body.reminder_tone is not None:
         s.reminder_tone = body.reminder_tone
+    if body.user_timezone is not None:
+        s.user_timezone = body.user_timezone
     db.commit()
     db.refresh(s)
     return NotificationSettingsOut.model_validate(s)

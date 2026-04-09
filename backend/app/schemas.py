@@ -2,6 +2,7 @@ from datetime import date as Date
 from datetime import datetime, time
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -147,6 +148,7 @@ class NotificationSettingsOut(BaseModel):
     quiet_hours_end: time | None
     reminder_tone: ReminderTone
     micro_step_frequency: str | None
+    user_timezone: str
 
     model_config = {"from_attributes": True}
 
@@ -167,6 +169,18 @@ class SettingsUpdate(BaseModel):
     quiet_hours_start: time | None = None
     quiet_hours_end: time | None = None
     reminder_tone: ReminderTone | None = None
+    user_timezone: str | None = None
+
+    @field_validator("user_timezone")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            ZoneInfo(v)
+        except Exception as exc:
+            raise ValueError("Invalid IANA timezone") from exc
+        return v
 
 
 class ChangePasswordRequest(BaseModel):

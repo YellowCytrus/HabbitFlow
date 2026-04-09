@@ -60,6 +60,7 @@ def _ensure_defaults(db: Session, user: User) -> None:
                 user_id=user.id,
                 global_enabled=True,
                 reminder_tone=ReminderTone.neutral,
+                user_timezone="Asia/Krasnoyarsk",
             )
         )
     if db.query(UserSubscription).filter(UserSubscription.user_id == user.id).first() is None:

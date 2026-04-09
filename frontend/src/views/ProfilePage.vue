@@ -101,6 +101,18 @@
                   item-value="value"
                   class="mb-4"
                 />
+                <v-autocomplete
+                  v-model="userTimezone"
+                  label="Часовой пояс"
+                  :items="timezoneItems"
+                  item-title="title"
+                  item-value="value"
+                  clearable
+                  class="mb-4"
+                />
+                <v-btn type="button" color="secondary" variant="outlined" class="text-none mb-4" @click="detectTimezoneByGeolocation">
+                  Определить таймзону по геолокации
+                </v-btn>
                 <v-btn type="submit" color="primary" variant="tonal" class="text-none">Сохранить настройки</v-btn>
               </v-form>
               <v-divider class="my-4" />
@@ -136,6 +148,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api } from "../api/client";
 import { localToday } from "../util/date";
+import { resolveBrowserTimezone, timezoneOptions } from "../util/timezones";
 
 const notificationSupported = typeof Notification !== "undefined";
 const notificationPermission = ref(
@@ -180,6 +193,10 @@ const name = ref("");
 const email = ref("");
 const globalEnabled = ref(true);
 const reminderTone = ref("neutral");
+const userTimezone = ref("Asia/Krasnoyarsk");
+const timezoneItems = timezoneOptions();
+const GEO_SYNC_KEY = "hf_tz_last_sync_at";
+const GEO_SYNC_MS = 12 * 60 * 60 * 1000;
 const oldPassword = ref("");
 const newPassword = ref("");
 const message = ref("");
@@ -246,9 +263,57 @@ async function load() {
     email.value = data.user.email;
     globalEnabled.value = data.settings.global_enabled;
     reminderTone.value = data.settings.reminder_tone;
+    userTimezone.value = data.settings.user_timezone || "Asia/Krasnoyarsk";
     await loadStats();
   } catch {
     error.value = "Не удалось загрузить профиль.";
+  }
+}
+
+function canGeoSyncNow() {
+  const raw = localStorage.getItem(GEO_SYNC_KEY);
+  if (!raw) return true;
+  const ts = Number(raw);
+  if (!Number.isFinite(ts)) return true;
+  return Date.now() - ts >= GEO_SYNC_MS;
+}
+
+function markGeoSyncNow() {
+  localStorage.setItem(GEO_SYNC_KEY, String(Date.now()));
+}
+
+async function saveTimezone(nextTz) {
+  await api.put("/api/v1/profile/settings", { user_timezone: nextTz });
+  userTimezone.value = nextTz;
+}
+
+async function syncTimezoneByBrowser() {
+  const nextTz = resolveBrowserTimezone();
+  if (!nextTz || nextTz === userTimezone.value) return;
+  await saveTimezone(nextTz);
+}
+
+async function detectTimezoneByGeolocation() {
+  if (!("geolocation" in navigator)) {
+    error.value = "Геолокация недоступна в этом браузере.";
+    return;
+  }
+  message.value = "";
+  error.value = "";
+  try {
+    await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        () => resolve(true),
+        (err) => reject(err),
+        { timeout: 10000, enableHighAccuracy: false },
+      );
+    });
+    await syncTimezoneByBrowser();
+    markGeoSyncNow();
+    message.value = "Таймзона обновлена по геолокации.";
+    snackOk.value = true;
+  } catch {
+    error.value = "Не удалось получить геолокацию.";
   }
 }
 
@@ -278,6 +343,7 @@ async function saveSettings() {
     await api.put("/api/v1/profile/settings", {
       global_enabled: globalEnabled.value,
       reminder_tone: reminderTone.value,
+      user_timezone: userTimezone.value,
     });
     message.value = "Настройки сохранены.";
     snackOk.value = true;
@@ -314,6 +380,16 @@ onMounted(() => {
   syncNotificationPermissionFromBrowser();
   window.addEventListener("focus", syncNotificationPermissionFromBrowser);
   load();
+  if (navigator.permissions?.query) {
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((res) => {
+        if (res.state === "granted" && canGeoSyncNow()) {
+          void syncTimezoneByBrowser().then(markGeoSyncNow).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }
 });
 
 onUnmounted(() => {

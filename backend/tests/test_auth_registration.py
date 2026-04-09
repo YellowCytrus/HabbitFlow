@@ -41,7 +41,9 @@ def test_register_verify_code_creates_profile(client, db_session: Session, monke
     db_session.expire_all()
     uid2 = db_session.query(User).filter(User.email == "newuser@example.com").one()
     assert uid2.is_verified is True
-    assert db_session.query(NotificationSettings).filter(NotificationSettings.user_id == uid2.id).first() is not None
+    settings = db_session.query(NotificationSettings).filter(NotificationSettings.user_id == uid2.id).first()
+    assert settings is not None
+    assert settings.user_timezone == "Asia/Krasnoyarsk"
 
     pr = client.get("/api/v1/profile", headers={"Authorization": f"Bearer {tok['access_token']}"})
     assert pr.status_code == 200

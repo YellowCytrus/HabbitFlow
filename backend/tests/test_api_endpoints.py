@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
-from app.models import SubscriptionPlan
+from app.models import Notification, NotificationSettings, SubscriptionPlan
 
 from .conftest import auth_headers, make_user
 
@@ -177,6 +177,24 @@ def test_profile_get_update_settings(client, db_session):
     assert r.json()["global_enabled"] is False
     assert r.json()["reminder_tone"] == "soft"
 
+    r = client.put(
+        "/api/v1/profile/settings",
+        json={"user_timezone": "Asia/Krasnoyarsk"},
+        headers=auth_headers(user.id),
+    )
+    assert r.status_code == 200
+    assert r.json()["user_timezone"] == "Asia/Krasnoyarsk"
+
+
+def test_profile_settings_reject_invalid_timezone(client, db_session):
+    user = make_user(db_session)
+    r = client.put(
+        "/api/v1/profile/settings",
+        json={"user_timezone": "Not/AZone"},
+        headers=auth_headers(user.id),
+    )
+    assert r.status_code == 422
+
 
 def test_profile_change_password(client, db_session, monkeypatch):
     """Stub password helpers for a focused change-password flow test."""
@@ -308,3 +326,54 @@ def test_invalid_habit_uuid_path(client, db_session):
     user = make_user(db_session)
     r = client.get(f"/api/v1/habits/{uuid4()}", headers=auth_headers(user.id))
     assert r.status_code == 404
+
+
+def test_due_notifications_endpoint_returns_contract_fields(client, db_session):
+    user = make_user(db_session)
+    db_session.query(NotificationSettings).filter_by(user_id=user.id).update({"user_timezone": "UTC"})
+    db_session.commit()
+
+    create = client.post(
+        "/api/v1/habits",
+        json=_habit_body(
+            title="Read",
+            reminder_time="09:00:00",
+            recurrence_rule={"type": "daily"},
+        ),
+        headers=auth_headers(user.id),
+    )
+    assert create.status_code == 201
+
+    n = (
+        db_session.query(Notification)
+        .filter(Notification.user_id == user.id)
+        .order_by(Notification.goal_datetime.asc())
+        .first()
+    )
+    assert n is not None
+    n.goal_datetime = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.commit()
+
+    r = client.get("/api/v1/notifications/due", headers=auth_headers(user.id))
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    item = body[0]
+    assert item["notification_id"] == str(n.id)
+    assert "idempotency_key" in item
+    assert item["payload"]["title"] == "Read"
+
+
+def test_create_habit_creates_notification_with_habit_id(client, db_session):
+    user = make_user(db_session)
+    r = client.post(
+        "/api/v1/habits",
+        json=_habit_body(title="With Notification", reminder_time="09:00:00"),
+        headers=auth_headers(user.id),
+    )
+    assert r.status_code == 201
+    habit_id = r.json()["id"]
+
+    n = db_session.query(Notification).filter(Notification.habit_id == habit_id).first()
+    assert n is not None
+    assert n.payload["habit_id"] == habit_id

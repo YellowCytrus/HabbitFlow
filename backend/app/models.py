@@ -154,8 +154,42 @@ class NotificationSettings(Base):
     quiet_hours_end: Mapped[time | None] = mapped_column(Time, nullable=True)
     reminder_tone: Mapped[ReminderTone] = mapped_column(Enum(ReminderTone), default=ReminderTone.neutral, nullable=False)
     micro_step_frequency: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    user_timezone: Mapped[str] = mapped_column(String(64), default="Asia/Krasnoyarsk", nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="notification_settings")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    __table_args__ = (UniqueConstraint("habit_id", name="uq_notifications_habit_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    habit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("habits.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    goal_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    recurrence_rule: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: {"type": "daily"})
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    last_check_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    is_processing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    user_timezone: Mapped[str] = mapped_column(String(64), default="UTC", nullable=False)
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    notification_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("notifications.id", ondelete="CASCADE"), index=True
+    )
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_sent: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserSubscription(Base):

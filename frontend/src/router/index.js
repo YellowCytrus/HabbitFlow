@@ -8,6 +8,7 @@ import HabitForm from "../views/HabitForm.vue";
 import HabitShow from "../views/HabitShow.vue";
 import CalendarPage from "../views/CalendarPage.vue";
 import ProfilePage from "../views/ProfilePage.vue";
+import NotificationTestPage from "../views/NotificationTestPage.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -48,6 +49,12 @@ const router = createRouter({
       path: "/profile",
       name: "profile",
       component: ProfilePage,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/notifications/test",
+      name: "notifications-test",
+      component: NotificationTestPage,
       meta: { requiresAuth: true },
     },
   ],
