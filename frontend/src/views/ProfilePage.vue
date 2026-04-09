@@ -51,6 +51,34 @@
 
       <v-col cols="12" lg="5">
         <v-card class="pa-6 mb-6" elevation="2">
+          <div class="d-flex align-center mb-6">
+            <v-avatar size="72" class="mr-4">
+              <v-img v-if="avatarDisplayUrl" :src="avatarDisplayUrl" cover />
+              <span v-else class="text-h6">{{ nameInitial }}</span>
+            </v-avatar>
+            <div class="d-flex flex-column ga-2">
+              <v-btn
+                color="secondary"
+                variant="tonal"
+                size="small"
+                class="text-none"
+                prepend-icon="mdi-camera"
+                :loading="uploadingAvatar"
+                :disabled="uploadingAvatar"
+                @click="triggerAvatarSelect"
+              >
+                Сменить аватар
+              </v-btn>
+              <span class="text-caption text-medium-emphasis">JPG, PNG, WEBP до 5 МБ</span>
+            </div>
+            <input
+              ref="avatarInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="d-none"
+              @change="onAvatarPicked"
+            />
+          </div>
           <h2 class="text-subtitle-1 font-weight-bold mb-6">Настройки</h2>
           <v-form @submit.prevent="saveProfile">
             <v-text-field v-model="name" label="Имя" autocomplete="name" class="mb-4" />
@@ -183,12 +211,36 @@
         </v-expansion-panels>
       </v-col>
     </v-row>
+
+    <v-dialog v-model="avatarDialog" max-width="640">
+      <v-card>
+        <v-card-title class="text-subtitle-1 font-weight-medium">Обрезка аватара</v-card-title>
+        <v-card-text>
+          <Cropper
+            v-if="avatarSource"
+            ref="avatarCropper"
+            class="avatar-cropper"
+            :src="avatarSource"
+            :stencil-props="{ aspectRatio: 1 }"
+            image-restriction="stencil"
+          />
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4">
+          <v-spacer />
+          <v-btn variant="text" class="text-none" @click="avatarDialog = false">Отмена</v-btn>
+          <v-btn color="primary" class="text-none" :loading="uploadingAvatar" @click="applyAvatarCrop">Сохранить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { Cropper } from "vue-advanced-cropper";
+import "vue-advanced-cropper/dist/style.css";
 import { api } from "../api/client";
+import { useAuthStore } from "../stores/auth";
 import { localToday } from "../util/date";
 import { resolveBrowserTimezone, timezoneOptions } from "../util/timezones";
 
@@ -231,8 +283,15 @@ async function maybeRequestNotificationPermission() {
 }
 
 const profile = ref(null);
+const auth = useAuthStore();
 const name = ref("");
 const email = ref("");
+const avatarInput = ref(null);
+const avatarCropper = ref(null);
+const avatarSource = ref("");
+const avatarPreviewUrl = ref("");
+const avatarDialog = ref(false);
+const uploadingAvatar = ref(false);
 const globalEnabled = ref(true);
 const reminderTone = ref("neutral");
 const userTimezone = ref("Asia/Krasnoyarsk");
@@ -263,6 +322,8 @@ const metrics = ref({
 const memberLine = computed(() => "Спасибо, что вы с HabitFlow — забота о вас в каждой детали.");
 
 const quoteSteps = computed(() => metrics.value.done30 + metrics.value.micro30);
+const nameInitial = computed(() => (name.value || email.value || "U").trim().charAt(0).toUpperCase());
+const avatarDisplayUrl = computed(() => avatarPreviewUrl.value || profile.value?.user?.avatar_url || "");
 
 async function loadStats() {
   try {
@@ -308,14 +369,82 @@ async function load() {
   try {
     const { data } = await api.get("/api/v1/profile");
     profile.value = data;
+    auth.setUserProfile(data.user);
     name.value = data.user.name;
     email.value = data.user.email;
+    avatarPreviewUrl.value = data.user.avatar_url || "";
     globalEnabled.value = data.settings.global_enabled;
     reminderTone.value = data.settings.reminder_tone;
     userTimezone.value = data.settings.user_timezone || "Asia/Krasnoyarsk";
     await loadStats();
   } catch {
     error.value = "Не удалось загрузить профиль.";
+  }
+}
+
+function triggerAvatarSelect() {
+  avatarInput.value?.click();
+}
+
+function revokeIfBlobUrl(url) {
+  if (url && url.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
+function onAvatarPicked(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = "Файл слишком большой (максимум 5 МБ).";
+    return;
+  }
+  const objectUrl = URL.createObjectURL(file);
+  revokeIfBlobUrl(avatarSource.value);
+  avatarSource.value = objectUrl;
+  avatarDialog.value = true;
+  event.target.value = "";
+}
+
+function canvasToBlob(canvas, type = "image/jpeg", quality = 0.9) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to create blob"));
+    }, type, quality);
+  });
+}
+
+async function applyAvatarCrop() {
+  if (uploadingAvatar.value) return;
+  const cropper = avatarCropper.value;
+  const result = cropper?.getResult?.();
+  const canvas = result?.canvas;
+  if (!canvas) {
+    error.value = "Не удалось подготовить изображение.";
+    return;
+  }
+
+  message.value = "";
+  error.value = "";
+  uploadingAvatar.value = true;
+  try {
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.9);
+    const form = new FormData();
+    form.append("file", new File([blob], "avatar.jpg", { type: "image/jpeg" }));
+    const { data } = await api.post("/api/v1/profile/avatar", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    profile.value = { ...profile.value, user: data };
+    auth.setUserProfile(data);
+    avatarPreviewUrl.value = data.avatar_url || "";
+    avatarDialog.value = false;
+    revokeIfBlobUrl(avatarSource.value);
+    avatarSource.value = "";
+    message.value = "Аватар обновлён.";
+    snackOk.value = true;
+  } catch (e) {
+    error.value = e.response?.data?.detail || "Не удалось загрузить аватар.";
+  } finally {
+    uploadingAvatar.value = false;
   }
 }
 
@@ -460,11 +589,16 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("focus", syncNotificationPermissionFromBrowser);
+  revokeIfBlobUrl(avatarSource.value);
 });
 </script>
 
 <style scoped>
 .quote-card {
   border: 1px solid rgba(var(--v-theme-outline), 0.12);
+}
+
+.avatar-cropper {
+  height: 360px;
 }
 </style>

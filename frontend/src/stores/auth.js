@@ -8,6 +8,8 @@ const REFRESH = "habitflow_refresh";
 export const useAuthStore = defineStore("auth", () => {
   const accessToken = ref("");
   const refreshToken = ref("");
+  const userName = ref("");
+  const userAvatarUrl = ref("");
 
   function hydrate() {
     accessToken.value = localStorage.getItem(ACCESS) || "";
@@ -26,10 +28,17 @@ export const useAuthStore = defineStore("auth", () => {
   function logout() {
     accessToken.value = "";
     refreshToken.value = "";
+    userName.value = "";
+    userAvatarUrl.value = "";
     localStorage.removeItem(ACCESS);
     localStorage.removeItem(REFRESH);
     clearAuthHeader();
   }
 
-  return { accessToken, refreshToken, hydrate, setTokens, logout };
+  function setUserProfile(user) {
+    userName.value = user?.name || "";
+    userAvatarUrl.value = user?.avatar_url || "";
+  }
+
+  return { accessToken, refreshToken, userName, userAvatarUrl, hydrate, setTokens, setUserProfile, logout };
 });

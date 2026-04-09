@@ -1,9 +1,12 @@
 import secrets
+import uuid
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.deps import CurrentUser
 from app.email_util import send_verification_email
@@ -19,6 +22,17 @@ from app.schemas import (
 from app.security import hash_password, verify_password
 
 router = APIRouter(prefix="/profile", tags=["profile"])
+_MAX_AVATAR_BYTES = 5 * 1024 * 1024
+_ALLOWED_AVATAR_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+_UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads" / "avatars"
+
+
+def _backend_origin() -> str:
+    return settings.oauth_redirect_base.rstrip("/")
 
 
 @router.get("", response_model=ProfileOut)
@@ -52,6 +66,29 @@ def update_profile(db: Annotated[Session, Depends(get_db)], user: CurrentUser, b
                 send_verification_email(user.email, token)
             except Exception:
                 pass
+    db.commit()
+    db.refresh(user)
+    return UserPublic.model_validate(user)
+
+
+@router.post("/avatar", response_model=UserPublic)
+async def upload_avatar(db: Annotated[Session, Depends(get_db)], user: CurrentUser, file: UploadFile = File(...)):
+    if file.content_type not in _ALLOWED_AVATAR_TYPES:
+        raise HTTPException(status_code=400, detail="Supported formats: JPEG, PNG, WEBP")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Avatar file is empty")
+    if len(content) > _MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=400, detail="Avatar file is too large (max 5MB)")
+
+    _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    ext = _ALLOWED_AVATAR_TYPES[file.content_type]
+    filename = f"{user.id}-{uuid.uuid4().hex}{ext}"
+    dest = _UPLOADS_DIR / filename
+    dest.write_bytes(content)
+
+    user.avatar_url = f"{_backend_origin()}/uploads/avatars/{filename}"
     db.commit()
     db.refresh(user)
     return UserPublic.model_validate(user)

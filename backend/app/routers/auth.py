@@ -242,7 +242,7 @@ def logout(_user: CurrentUser):
 
 
 def _yandex_token(code: str, redirect_uri: str) -> dict:
-    with httpx.Client() as client:
+    with httpx.Client(timeout=10.0, trust_env=False) as client:
         r = client.post(
             "https://oauth.yandex.com/token",
             data={
@@ -258,14 +258,14 @@ def _yandex_token(code: str, redirect_uri: str) -> dict:
 
 
 def _yandex_profile(access_token: str) -> dict:
-    with httpx.Client() as client:
+    with httpx.Client(timeout=10.0, trust_env=False) as client:
         r = client.get("https://login.yandex.ru/info", headers={"Authorization": f"OAuth {access_token}"})
         r.raise_for_status()
         return r.json()
 
 
 def _vk_token(code: str, redirect_uri: str) -> dict:
-    with httpx.Client() as client:
+    with httpx.Client(timeout=10.0, trust_env=False) as client:
         r = client.get(
             "https://oauth.vk.com/access_token",
             params={
@@ -280,7 +280,7 @@ def _vk_token(code: str, redirect_uri: str) -> dict:
 
 
 def _vk_profile(access_token: str, user_id: str) -> dict:
-    with httpx.Client() as client:
+    with httpx.Client(timeout=10.0, trust_env=False) as client:
         r = client.get(
             "https://api.vk.com/method/users.get",
             params={

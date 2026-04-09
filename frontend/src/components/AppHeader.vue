@@ -18,6 +18,10 @@
       </div>
 
       <div class="d-flex align-center ga-2 flex-shrink-0">
+        <v-avatar size="32" color="primary" variant="tonal">
+          <v-img v-if="avatarUrl" :src="avatarUrl" cover />
+          <span v-else class="text-caption font-weight-medium">{{ nameInitial }}</span>
+        </v-avatar>
         <span v-if="displayName" class="text-body-2 text-medium-emphasis d-none d-md-inline">{{ displayName }}</span>
         <v-btn variant="outlined" size="small" class="text-none" @click="onLogout">Выйти</v-btn>
       </div>
@@ -26,21 +30,24 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { api } from "../api/client";
 
 const router = useRouter();
 const auth = useAuthStore();
-const displayName = ref("");
+const displayName = computed(() => auth.userName || "");
+const avatarUrl = computed(() => auth.userAvatarUrl || "");
+const nameInitial = computed(() => (displayName.value || "U").trim().charAt(0).toUpperCase());
 
 onMounted(async () => {
+  if (!auth.accessToken) return;
   try {
     const { data } = await api.get("/api/v1/profile");
-    displayName.value = data.user?.name || "";
+    auth.setUserProfile(data.user);
   } catch {
-    displayName.value = "";
+    auth.setUserProfile(null);
   }
 });
 

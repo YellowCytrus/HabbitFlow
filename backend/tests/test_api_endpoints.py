@@ -258,6 +258,20 @@ def test_profile_email_conflict(client, db_session):
     assert r.status_code == 400
 
 
+def test_profile_avatar_upload(client, db_session):
+    user = make_user(db_session)
+    image_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    r = client.post(
+        "/api/v1/profile/avatar",
+        files={"file": ("avatar.png", image_bytes, "image/png")},
+        headers=auth_headers(user.id),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["avatar_url"]
+    assert "/uploads/avatars/" in data["avatar_url"]
+
+
 def test_calendar_month_and_day(client, db_session):
     user = make_user(db_session)
     r = client.post("/api/v1/habits", json=_habit_body(), headers=auth_headers(user.id))
