@@ -46,6 +46,18 @@ def _new_registration_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
+def _registration_delivery_warning(email: str) -> str | None:
+    domain = email.rsplit("@", 1)[-1].lower()
+    from_addr = settings.smtp_from.lower().strip()
+    if domain in {"yandex.ru", "ya.ru"} and from_addr.endswith("@resend.dev"):
+        return (
+            "Delivery to Yandex mail may fail when using test sender "
+            "addresses on resend.dev. Use another mailbox or configure your "
+            "own verified sending domain."
+        )
+    return None
+
+
 def _send_registration_code_background(to_email: str, code: str) -> None:
     try:
         send_registration_code_email(to_email, code)
@@ -122,7 +134,11 @@ def register(
         )
     db.commit()
     background_tasks.add_task(_send_registration_code_background, email, code)
-    return {"message": "Check email for verification code", "email": email}
+    response = {"message": "Check email for verification code", "email": email}
+    warning = _registration_delivery_warning(email)
+    if warning:
+        response["delivery_warning"] = warning
+    return response
 
 
 @router.post("/login", response_model=TokenPair)
@@ -182,6 +198,9 @@ def resend_registration_code(
 ):
     email = body.email.lower()
     msg = {"message": "If the account is pending verification, a new code was sent."}
+    warning = _registration_delivery_warning(email)
+    if warning:
+        msg["delivery_warning"] = warning
     pending = db.query(PendingRegistration).filter(PendingRegistration.email == email).first()
     if not pending:
         return msg
