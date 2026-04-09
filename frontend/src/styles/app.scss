@@ -41,48 +41,6 @@ body {
   color: rgb(var(--v-theme-on-surface)) !important;
 }
 
-.hf-app .hf-liquid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(165deg, #f5f5f7 0%, #ececf2 42%, #e8eef8 100%);
-}
-
-.hf-app .hf-liquid-bg::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10%;
-  background: radial-gradient(ellipse 55% 45% at 18% 12%, rgba(0, 113, 227, 0.11), transparent 58%),
-    radial-gradient(ellipse 50% 40% at 88% 78%, rgba(41, 151, 255, 0.09), transparent 52%),
-    radial-gradient(ellipse 35% 30% at 50% 100%, rgba(0, 102, 204, 0.06), transparent 55%);
-  animation: hf-liquid-drift 22s ease-in-out infinite;
-}
-
-.hf-app .hf-liquid-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 100% 80% at 50% 120%, rgba(255, 255, 255, 0.45), transparent 45%);
-  opacity: 0.9;
-}
-
-@keyframes hf-liquid-drift {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  40% {
-    transform: translate(1.5%, -0.8%) scale(1.02);
-    opacity: 0.95;
-  }
-  70% {
-    transform: translate(-1%, 0.5%) scale(1.01);
-    opacity: 1;
-  }
-}
-
 .hf-app .v-application__wrap {
   position: relative;
   z-index: 1;
@@ -212,22 +170,28 @@ body {
 
 /* Router view transition — keep, Apple-like easing */
 .route-fade-enter-active {
-  transition:
-    opacity 0.32s cubic-bezier(0.25, 0.1, 0.25, 1),
-    transform 0.32s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: opacity 0.32s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 .route-fade-leave-active {
-  transition:
-    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .route-fade-enter-from {
   opacity: 0;
-  transform: translateY(12px);
 }
 .route-fade-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+}
+
+/* Keep fixed-position backgrounds stable during route enter */
+.route-fade-fixed-safe-enter-active {
+  transition: opacity 0.32s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.route-fade-fixed-safe-leave-active {
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.route-fade-fixed-safe-enter-from,
+.route-fade-fixed-safe-leave-to {
+  opacity: 0;
 }
 
 /* Scroll reveal */
@@ -246,13 +210,17 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .route-fade-enter-active,
   .route-fade-leave-active,
+  .route-fade-fixed-safe-enter-active,
+  .route-fade-fixed-safe-leave-active,
   [data-reveal],
-  .hf-app .hf-liquid-bg::before {
+  .liquid-bg__mesh {
     transition: none !important;
     animation: none !important;
   }
   .route-fade-enter-from,
   .route-fade-leave-to,
+  .route-fade-fixed-safe-enter-from,
+  .route-fade-fixed-safe-leave-to,
   [data-reveal] {
     opacity: 1;
     transform: none;

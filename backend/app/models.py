@@ -107,8 +107,8 @@ class Habit(Base):
     reminder_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     adaptive_reminder: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     recurrence_rule: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: {"type": "daily"})
-    deadline_type: Mapped[DeadlineType] = mapped_column(Enum(DeadlineType), nullable=False)
-    deadline_value: Mapped[str] = mapped_column(String(100), nullable=False)
+    deadline_type: Mapped[DeadlineType | None] = mapped_column(Enum(DeadlineType), nullable=True)
+    deadline_value: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=None))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(tz=None), onupdate=lambda: datetime.now(tz=None)

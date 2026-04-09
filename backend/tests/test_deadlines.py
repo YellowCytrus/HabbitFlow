@@ -39,6 +39,12 @@ def test_full_deadline_exact_outside():
     assert is_within_full_deadline(h, at, date(2026, 4, 5)) is False
 
 
+def test_full_deadline_missing_allows_any_time():
+    h = _H(None, None)
+    at = datetime(2026, 4, 5, 11, 0, 0)
+    assert is_within_full_deadline(h, at, date(2026, 4, 5)) is True
+
+
 def test_micro_allowed_same_day():
     at = datetime(2026, 4, 5, 22, 0, 0)
     assert is_micro_allowed(at, date(2026, 4, 5)) is True

@@ -1,11 +1,11 @@
 <template>
   <v-app class="hf-app">
-    <div class="hf-liquid-bg" aria-hidden="true" />
+    <SeededLiquidBackground v-if="route.meta.liquidBackground !== false" />
     <AppHeader v-if="showChrome" />
     <v-main class="hf-main">
       <div class="hf-main__inner">
         <router-view v-slot="{ Component, route: r }">
-          <transition name="route-fade" mode="out-in">
+          <transition :name="r.name === 'habits' ? 'route-fade-fixed-safe' : 'route-fade'" mode="out-in">
             <component :is="Component" :key="r.name ?? r.path" />
           </transition>
         </router-view>
@@ -21,6 +21,7 @@ import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import AppHeader from "./components/AppHeader.vue";
 import AppFooter from "./components/AppFooter.vue";
+import SeededLiquidBackground from "./components/SeededLiquidBackground.vue";
 import { useAuthStore } from "./stores/auth";
 import { useHabitReminders } from "./composables/useHabitReminders";
 

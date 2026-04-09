@@ -4,6 +4,7 @@ import { useAuthStore } from "../stores/auth";
 import LandingPage from "../views/LandingPage.vue";
 import AuthPage from "../views/AuthPage.vue";
 import HabitsIndex from "../views/HabitsIndex.vue";
+import HabitsAllPage from "../views/HabitsAllPage.vue";
 import HabitForm from "../views/HabitForm.vue";
 import HabitShow from "../views/HabitShow.vue";
 import CalendarPage from "../views/CalendarPage.vue";
@@ -19,6 +20,12 @@ const router = createRouter({
       path: "/habits",
       name: "habits",
       component: HabitsIndex,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/habits/all",
+      name: "habits-all",
+      component: HabitsAllPage,
       meta: { requiresAuth: true },
     },
     {

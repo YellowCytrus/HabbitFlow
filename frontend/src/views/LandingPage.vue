@@ -1,5 +1,35 @@
 <template>
   <div ref="rootEl" class="landing">
+    <div class="landing__liquid" aria-hidden="true">
+      <svg class="landing__blob landing__blob--a" viewBox="0 0 600 600" role="presentation">
+        <defs>
+          <linearGradient id="landing-gradient-a" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7f8cff" />
+            <stop offset="55%" stop-color="#40c8ff" />
+            <stop offset="100%" stop-color="#7ef6d3" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M531.6 312.5c-13.5 98-114.4 156.7-215.7 173.5-95.7 15.9-201.8-6.9-245.2-87.6-45-83.8-21.9-194.7 53.2-256.5C193 83.5 293.8 95 385.6 125c97.6 31.8 160.7 88.7 146 187.5Z"
+          fill="url(#landing-gradient-a)"
+        />
+      </svg>
+      <svg class="landing__blob landing__blob--b" viewBox="0 0 600 600" role="presentation">
+        <defs>
+          <linearGradient id="landing-gradient-b" x1="20%" y1="0%" x2="80%" y2="100%">
+            <stop offset="0%" stop-color="#ffc0f4" />
+            <stop offset="45%" stop-color="#b495ff" />
+            <stop offset="100%" stop-color="#66a6ff" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M507.5 350.6c-25.3 105.3-142.1 170.6-252.4 154.8-95.4-13.6-170.4-89.4-177.7-184-7.6-98.6 30.6-212.8 126.7-249.1 94.7-35.7 211.9 20.2 270.4 103.3 35.8 50.8 47.8 112.2 33 175Z"
+          fill="url(#landing-gradient-b)"
+        />
+      </svg>
+      <div class="landing__grain" />
+    </div>
+
     <header class="landing__top">
       <RouterLink to="/" class="landing__brand text-decoration-none text-primary">[HabitFlow]</RouterLink>
       <v-btn variant="outlined" color="primary" :to="{ name: 'auth' }" class="text-none">
@@ -109,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useReveal } from "../composables/useReveal";
 
 const rootEl = ref(null);
@@ -129,13 +159,89 @@ const steps = [
     text: "Мягкий календарь без красного. Зелёный, жёлтый, серый.",
   },
 ];
+
+let cleanupPointerEffect = null;
+
+onMounted(() => {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !rootEl.value) return;
+
+  const el = rootEl.value;
+  const onPointerMove = (event) => {
+    const { innerWidth, innerHeight } = window;
+    const px = (event.clientX / innerWidth - 0.5) * 2;
+    const py = (event.clientY / innerHeight - 0.5) * 2;
+    el.style.setProperty("--landing-tilt-x", `${px.toFixed(3)}`);
+    el.style.setProperty("--landing-tilt-y", `${py.toFixed(3)}`);
+  };
+  const onPointerLeave = () => {
+    el.style.setProperty("--landing-tilt-x", "0");
+    el.style.setProperty("--landing-tilt-y", "0");
+  };
+
+  window.addEventListener("pointermove", onPointerMove, { passive: true });
+  window.addEventListener("pointerleave", onPointerLeave, { passive: true });
+
+  cleanupPointerEffect = () => {
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerleave", onPointerLeave);
+  };
+});
+
+onUnmounted(() => {
+  if (cleanupPointerEffect) cleanupPointerEffect();
+});
 </script>
 
 <style scoped>
 .landing {
+  --landing-tilt-x: 0;
+  --landing-tilt-y: 0;
   max-width: 1120px;
   margin: 0 auto;
   padding: 16px 20px 0;
+  position: relative;
+  isolation: isolate;
+}
+.landing > *:not(.landing__liquid) {
+  position: relative;
+  z-index: 1;
+}
+.landing__liquid {
+  position: absolute;
+  inset: -12% -10% auto;
+  height: 620px;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(0.4px);
+}
+.landing__blob {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  opacity: 0.48;
+  transition: transform 280ms ease-out;
+  will-change: transform;
+}
+.landing__blob--a {
+  top: -48px;
+  left: -120px;
+  transform: translate3d(calc(var(--landing-tilt-x) * -18px), calc(var(--landing-tilt-y) * -14px), 0);
+  animation: landing-float-a 18s ease-in-out infinite;
+}
+.landing__blob--b {
+  right: -150px;
+  top: 70px;
+  opacity: 0.44;
+  transform: translate3d(calc(var(--landing-tilt-x) * 20px), calc(var(--landing-tilt-y) * 16px), 0);
+  animation: landing-float-b 22s ease-in-out infinite;
+}
+.landing__grain {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 0.6px, transparent 0.6px);
+  background-size: 4px 4px;
+  opacity: 0.2;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 76%);
 }
 .landing__top {
   position: sticky;
@@ -165,13 +271,66 @@ const steps = [
   padding-left: 20px;
   padding-right: 20px;
 }
+@keyframes landing-float-a {
+  0%,
+  100% {
+    transform: translate3d(calc(var(--landing-tilt-x) * -18px), calc(var(--landing-tilt-y) * -14px), 0)
+      rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(calc(var(--landing-tilt-x) * -14px), calc(var(--landing-tilt-y) * -10px), 0)
+      rotate(4deg) scale(1.05);
+  }
+}
+@keyframes landing-float-b {
+  0%,
+  100% {
+    transform: translate3d(calc(var(--landing-tilt-x) * 20px), calc(var(--landing-tilt-y) * 16px), 0)
+      rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(calc(var(--landing-tilt-x) * 16px), calc(var(--landing-tilt-y) * 12px), 0)
+      rotate(-5deg) scale(1.07);
+  }
+}
 @media (min-width: 960px) {
   .landing {
     padding: 24px 32px 0;
   }
+  .landing__liquid {
+    inset: -18% -8% auto;
+    height: 700px;
+  }
+  .landing__blob--a {
+    left: -70px;
+  }
   .landing__top {
     margin: -12px -32px 24px;
     padding: 14px 24px;
+  }
+}
+@media (max-width: 959px) {
+  .landing__liquid {
+    height: 500px;
+  }
+  .landing__blob {
+    width: 420px;
+    height: 420px;
+    opacity: 0.38;
+  }
+  .landing__blob--a {
+    top: -34px;
+    left: -140px;
+  }
+  .landing__blob--b {
+    right: -170px;
+    top: 70px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing__blob {
+    animation: none;
+    transform: none;
   }
 }
 </style>

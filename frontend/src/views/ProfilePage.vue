@@ -31,6 +31,15 @@
           </v-row>
           <v-divider class="my-6" />
           <p class="text-body-2 text-medium-emphasis mb-0">{{ memberLine }}</p>
+          <v-btn
+            class="text-none mt-4"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-format-list-bulleted"
+            :to="{ name: 'habits-all' }"
+          >
+            Все привычки
+          </v-btn>
         </v-card>
 
         <v-card class="pa-6 mb-6 text-center quote-card" elevation="1" color="surface-variant">
@@ -110,10 +119,27 @@
                   clearable
                   class="mb-4"
                 />
-                <v-btn type="button" color="secondary" variant="outlined" class="text-none mb-4" @click="detectTimezoneByGeolocation">
+                <v-btn
+                  type="button"
+                  color="secondary"
+                  variant="outlined"
+                  class="text-none mb-4"
+                  :loading="detectingTimezone"
+                  :disabled="savingSettings || detectingTimezone"
+                  @click="detectTimezoneByGeolocation"
+                >
                   Определить таймзону по геолокации
                 </v-btn>
-                <v-btn type="submit" color="primary" variant="tonal" class="text-none">Сохранить настройки</v-btn>
+                <v-btn
+                  type="submit"
+                  color="primary"
+                  variant="tonal"
+                  class="text-none"
+                  :loading="savingSettings"
+                  :disabled="savingSettings || detectingTimezone"
+                >
+                  Сохранить настройки
+                </v-btn>
               </v-form>
               <v-divider class="my-4" />
               <p class="text-subtitle-2 font-weight-medium mb-3">Смена пароля</p>
@@ -132,9 +158,25 @@
                   hint="Минимум 8 символов"
                   persistent-hint
                   autocomplete="new-password"
-                  class="mb-4"
+                  class="mb-3"
                 />
-                <v-btn type="submit" variant="outlined" class="text-none">Обновить пароль</v-btn>
+                <v-text-field
+                  v-model="newPasswordConfirm"
+                  label="Повторите новый пароль"
+                  type="password"
+                  autocomplete="new-password"
+                  class="mb-2"
+                />
+                <p v-if="showPasswordMismatch" class="text-caption text-error mb-3">Новые пароли не совпадают.</p>
+                <v-btn
+                  type="submit"
+                  variant="outlined"
+                  class="text-none"
+                  :loading="changingPassword"
+                  :disabled="showPasswordMismatch || changingPassword"
+                >
+                  Обновить пароль
+                </v-btn>
               </v-form>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -199,10 +241,17 @@ const GEO_SYNC_KEY = "hf_tz_last_sync_at";
 const GEO_SYNC_MS = 12 * 60 * 60 * 1000;
 const oldPassword = ref("");
 const newPassword = ref("");
+const newPasswordConfirm = ref("");
 const message = ref("");
 const error = ref("");
 const snackOk = ref(false);
 const savingProfile = ref(false);
+const savingSettings = ref(false);
+const changingPassword = ref(false);
+const detectingTimezone = ref(false);
+const showPasswordMismatch = computed(
+  () => newPasswordConfirm.value.length > 0 && newPassword.value !== newPasswordConfirm.value,
+);
 
 const metrics = ref({
   active: 0,
@@ -294,12 +343,14 @@ async function syncTimezoneByBrowser() {
 }
 
 async function detectTimezoneByGeolocation() {
+  if (detectingTimezone.value || savingSettings.value) return;
   if (!("geolocation" in navigator)) {
     error.value = "Геолокация недоступна в этом браузере.";
     return;
   }
   message.value = "";
   error.value = "";
+  detectingTimezone.value = true;
   try {
     await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -314,6 +365,8 @@ async function detectTimezoneByGeolocation() {
     snackOk.value = true;
   } catch {
     error.value = "Не удалось получить геолокацию.";
+  } finally {
+    detectingTimezone.value = false;
   }
 }
 
@@ -334,8 +387,10 @@ async function saveProfile() {
 }
 
 async function saveSettings() {
+  if (savingSettings.value || detectingTimezone.value) return;
   message.value = "";
   error.value = "";
+  savingSettings.value = true;
   try {
     if (globalEnabled.value) {
       await maybeRequestNotificationPermission();
@@ -350,12 +405,20 @@ async function saveSettings() {
     await load();
   } catch (e) {
     error.value = e.response?.data?.detail || "Ошибка сохранения.";
+  } finally {
+    savingSettings.value = false;
   }
 }
 
 async function changePassword() {
+  if (changingPassword.value) return;
   message.value = "";
   error.value = "";
+  if (showPasswordMismatch.value) {
+    error.value = "Новые пароли не совпадают.";
+    return;
+  }
+  changingPassword.value = true;
   try {
     await api.post("/api/v1/profile/change-password", {
       old_password: oldPassword.value,
@@ -365,8 +428,11 @@ async function changePassword() {
     snackOk.value = true;
     oldPassword.value = "";
     newPassword.value = "";
+    newPasswordConfirm.value = "";
   } catch (e) {
     error.value = e.response?.data?.detail || "Смена пароля не удалась.";
+  } finally {
+    changingPassword.value = false;
   }
 }
 

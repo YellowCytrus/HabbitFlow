@@ -44,6 +44,9 @@ def is_within_full_deadline(habit: Habit, at: datetime, log_date: date) -> bool:
     """Full completion allowed only inside deadline window for that calendar day."""
     if log_date != at.date():
         return False
+    if habit.deadline_type is None or not habit.deadline_value:
+        # No configured deadline means full completion is allowed all day.
+        return True
     if habit.deadline_type == DeadlineType.exact:
         start_t, end_t = parse_exact_window(habit.deadline_value)
         start_dt = _combine(log_date, start_t)
