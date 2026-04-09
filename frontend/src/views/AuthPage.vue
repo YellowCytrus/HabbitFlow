@@ -68,20 +68,83 @@
               label="Email"
               autocomplete="email"
               class="mb-3"
+              hide-details
+              @blur="emailTouched = true"
             />
+            <v-expand-transition>
+              <div v-show="showEmailValidation" class="validation-slot mb-3">
+                <v-card class="validation-card validation-card--email" variant="tonal" rounded="lg">
+                  <div class="validation-title text-body-2 font-weight-medium mb-2">Проверка email</div>
+                  <div class="d-flex align-center ga-2 mb-1 validation-item">
+                    <v-icon
+                      size="18"
+                      :icon="emailChecks.noSpaces ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :class="emailChecks.noSpaces ? 'validation-icon--ok' : 'validation-icon--warn'"
+                    />
+                    <span class="text-body-2">Без пробелов</span>
+                  </div>
+                  <div class="d-flex align-center ga-2 validation-item">
+                    <v-icon
+                      size="18"
+                      :icon="emailChecks.hasSimpleFormat ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :class="emailChecks.hasSimpleFormat ? 'validation-icon--ok' : 'validation-icon--warn'"
+                    />
+                    <span class="text-body-2">Формат: name@domain.tld</span>
+                  </div>
+                </v-card>
+              </div>
+            </v-expand-transition>
             <v-text-field
               v-model="regPassword"
               type="password"
               label="Пароль"
-              hint="Минимум 8 символов"
-              persistent-hint
+              autocomplete="new-password"
+              class="mb-3"
+              hide-details
+              @blur="passwordTouched = true"
+            />
+            <v-expand-transition>
+              <div v-show="showPasswordValidation" class="validation-slot mb-3">
+                <v-card class="validation-card validation-card--password" variant="tonal" rounded="lg">
+                  <div class="validation-title text-body-2 font-weight-medium mb-2">Сложность пароля</div>
+                  <div
+                    v-for="item in passwordChecklistItems"
+                    :key="item.label"
+                    class="d-flex align-center ga-2 mb-1 validation-item"
+                  >
+                    <v-icon
+                      size="18"
+                      :icon="item.valid ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :class="item.valid ? 'validation-icon--ok' : 'validation-icon--warn'"
+                    />
+                    <span class="text-body-2">{{ item.label }}</span>
+                  </div>
+                </v-card>
+              </div>
+            </v-expand-transition>
+            <v-text-field
+              v-model="regPasswordConfirm"
+              type="password"
+              label="Повторите пароль"
               autocomplete="new-password"
               class="mb-4"
+              hide-details
+              @blur="passwordConfirmTouched = true"
             />
+            <v-fade-transition>
+              <div v-if="showPasswordMismatch" class="validation-slot validation-slot--compact mb-4">
+                <v-card class="validation-card validation-card--mismatch" variant="tonal" rounded="lg">
+                  <div class="d-flex align-center ga-2 validation-item">
+                    <v-icon size="18" icon="mdi-alert-circle-outline" class="validation-icon--warn" />
+                    <span class="text-body-2">Пароли не совпадают</span>
+                  </div>
+                </v-card>
+              </div>
+            </v-fade-transition>
             <v-alert v-if="message" type="info" variant="tonal" density="compact" class="mb-4" rounded="lg">
               {{ message }}
             </v-alert>
-            <v-btn type="submit" color="primary" block size="large" class="text-none mb-4">
+            <v-btn type="submit" color="primary" block size="large" class="text-none mb-4" :disabled="!isRegisterFormValid">
               Зарегистрироваться
             </v-btn>
           </v-form>
@@ -100,12 +163,16 @@
             <v-text-field
               v-model="regCode"
               label="Код"
+              type="tel"
               inputmode="numeric"
+              pattern="[0-9]*"
               maxlength="6"
               counter="6"
               autocomplete="one-time-code"
               class="mb-4"
-              @update:model-value="regCode = ($event || '').replace(/\D/g, '').slice(0, 6)"
+              @update:model-value="onRegCodeInput"
+              @keydown="onRegCodeKeydown"
+              @paste="onRegCodePaste"
             />
             <v-alert v-if="message" type="info" variant="tonal" density="compact" class="mb-4" rounded="lg">
               {{ message }}
@@ -155,6 +222,7 @@
 </template>
 
 <script setup>
+import { watchDebounced } from "@vueuse/core";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
@@ -173,14 +241,76 @@ const loginPassword = ref("");
 const regName = ref("");
 const regEmail = ref("");
 const regPassword = ref("");
+const regPasswordConfirm = ref("");
 const regCode = ref("");
 const pendingEmail = ref("");
 const message = ref("");
+const emailTouched = ref(false);
+const passwordTouched = ref(false);
+const passwordConfirmTouched = ref(false);
 
 const apiRoot = import.meta.env.VITE_API_URL || "";
 
 const yandexUrl = computed(() => `${apiRoot}/api/v1/auth/oauth/yandex`);
 const vkStubSnack = ref(false);
+
+const emailChecks = computed(() => {
+  const value = regEmail.value.trim();
+  return {
+    noSpaces: !/\s/.test(value),
+    hasSimpleFormat: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+  };
+});
+
+const passwordChecks = computed(() => {
+  const value = regPassword.value;
+  return {
+    minLength: value.length >= 8,
+    lowercase: /[a-z]/.test(value),
+    uppercase: /[A-Z]/.test(value),
+    digit: /\d/.test(value),
+    special: /[^A-Za-z0-9]/.test(value),
+  };
+});
+
+const passwordsMatch = computed(
+  () => regPasswordConfirm.value.length > 0 && regPassword.value === regPasswordConfirm.value,
+);
+
+const isEmailValid = computed(() => Object.values(emailChecks.value).every(Boolean));
+const isPasswordValid = computed(() => Object.values(passwordChecks.value).every(Boolean));
+const isRegisterFormValid = computed(
+  () => regName.value.trim().length > 0 && isEmailValid.value && isPasswordValid.value && passwordsMatch.value,
+);
+
+const passwordChecklistItems = computed(() => [
+  { label: "Минимум 8 символов", valid: passwordChecks.value.minLength },
+  { label: "Строчная буква", valid: passwordChecks.value.lowercase },
+  { label: "Заглавная буква", valid: passwordChecks.value.uppercase },
+  { label: "Цифра", valid: passwordChecks.value.digit },
+  { label: "Спецсимвол", valid: passwordChecks.value.special },
+]);
+
+const showEmailValidation = computed(() => emailTouched.value || regEmail.value.length > 0);
+const showPasswordValidation = computed(() => passwordTouched.value || regPassword.value.length > 0);
+const showPasswordMismatch = computed(
+  () =>
+    (passwordConfirmTouched.value || regPasswordConfirm.value.length > 0) &&
+    regPasswordConfirm.value.length > 0 &&
+    !passwordsMatch.value,
+);
+
+watchDebounced(
+  [regEmail, regPassword, regPasswordConfirm],
+  () => {
+    if (registerStep.value !== "form") return;
+    if (!regEmail.value && !regPassword.value && !regPasswordConfirm.value) return;
+    emailTouched.value = true;
+    passwordTouched.value = true;
+    passwordConfirmTouched.value = true;
+  },
+  { debounce: 250, maxWait: 700 },
+);
 
 watch(
   () => route.query.tab,
@@ -196,6 +326,10 @@ watch(tab, (t) => {
   registerStep.value = "form";
   regCode.value = "";
   pendingEmail.value = "";
+  regPasswordConfirm.value = "";
+  emailTouched.value = false;
+  passwordTouched.value = false;
+  passwordConfirmTouched.value = false;
 });
 
 onMounted(async () => {
@@ -242,6 +376,13 @@ async function onLogin() {
 
 async function onRegister() {
   message.value = "";
+  emailTouched.value = true;
+  passwordTouched.value = true;
+  passwordConfirmTouched.value = true;
+  if (!isRegisterFormValid.value) {
+    message.value = "Исправьте ошибки в форме регистрации.";
+    return;
+  }
   try {
     const { data } = await axios.post(`${apiRoot}/api/v1/auth/register`, {
       email: regEmail.value,
@@ -262,7 +403,7 @@ async function onConfirmCode() {
   try {
     const { data } = await axios.post(`${apiRoot}/api/v1/auth/verify-registration`, {
       email: pendingEmail.value,
-      code: regCode.value,
+      code: sanitizeRegCode(regCode.value),
     });
     auth.setTokens(data.access_token, data.refresh_token);
     registerStep.value = "form";
@@ -295,6 +436,39 @@ function backToRegisterForm() {
   regCode.value = "";
   message.value = "";
 }
+
+function sanitizeRegCode(value = "") {
+  return String(value).replace(/\D/g, "").slice(0, 6);
+}
+
+function onRegCodeInput(value = "") {
+  regCode.value = sanitizeRegCode(value);
+}
+
+function onRegCodeKeydown(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+  const allowedControlKeys = ["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight", "Home", "End"];
+  if (allowedControlKeys.includes(event.key)) return;
+
+  const isDigit = /^\d$/.test(event.key);
+  const hasSelection = (event.target?.selectionStart ?? 0) !== (event.target?.selectionEnd ?? 0);
+  const hasRoom = regCode.value.length < 6;
+
+  if (!isDigit || (!hasSelection && !hasRoom)) {
+    event.preventDefault();
+  }
+}
+
+function onRegCodePaste(event) {
+  event.preventDefault();
+  const pastedText = event.clipboardData?.getData("text") ?? "";
+  const input = event.target;
+  const start = input?.selectionStart ?? regCode.value.length;
+  const end = input?.selectionEnd ?? regCode.value.length;
+  const nextValue = `${regCode.value.slice(0, start)}${pastedText}${regCode.value.slice(end)}`;
+  regCode.value = sanitizeRegCode(nextValue);
+}
 </script>
 
 <style scoped>
@@ -317,6 +491,34 @@ function backToRegisterForm() {
 }
 .auth-card {
   border-radius: 20px !important;
+}
+.validation-slot {
+  min-height: 112px;
+}
+.validation-slot--compact {
+  min-height: 56px;
+}
+.validation-card {
+  padding: 12px 14px;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+.validation-card--password {
+  min-height: 112px;
+}
+.validation-card--email {
+  min-height: 88px;
+}
+.validation-title {
+  line-height: 1.1;
+}
+.validation-item {
+  line-height: 1.1;
+}
+.validation-icon--ok {
+  color: rgb(var(--v-theme-success));
+}
+.validation-icon--warn {
+  color: #c45f5f;
 }
 .auth-oauth__btn {
   min-width: 0;

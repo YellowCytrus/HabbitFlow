@@ -1,0 +1,7 @@
+   17  sudo pacman -Sy
+   18  sudo pacman -Su
+   31  sudo pacman -S chromium
+   35  sudo pacman -S mesa-utils
+   70  sudo pacman -S android-tools android-udev
+  127  sudo pacman -S docker
+  153* history | grep pacman >> history_to_restore_all_my_downloadings.txt

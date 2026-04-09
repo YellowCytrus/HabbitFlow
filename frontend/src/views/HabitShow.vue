@@ -32,20 +32,37 @@
       </v-row>
 
       <h2 class="text-subtitle-1 font-weight-bold mb-4">Последние 30 дней</h2>
-      <div class="heatmap d-grid mb-3" role="grid" aria-label="Прогресс за 30 дней">
-        <button
-          v-for="cell in heatmapCells"
-          :key="cell.iso"
-          type="button"
-          class="heatmap__cell"
-          :title="`${cell.iso}: ${statusLabel(cell.status)}`"
-        >
-          <ColorIntensitySquare
-            class="heatmap__sq"
-            palette="semantic"
-            :level="levelForStatus(cell.status)"
-          />
-        </button>
+      <div class="habit-calendar rounded-lg elevation-1 mb-3">
+        <table class="habit-calendar__table" role="grid" aria-label="Прогресс за последние 30 дней">
+          <thead>
+            <tr>
+              <th v-for="w in weekdays" :key="w" class="habit-calendar__th" scope="col">{{ w }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(week, wi) in heatmapWeeks" :key="wi">
+              <td
+                v-for="cell in week"
+                :key="cell.iso"
+                class="habit-calendar__td"
+                :class="{ 'habit-calendar__td--pad': !cell.inRange }"
+              >
+                <div
+                  class="habit-calendar__cell"
+                  :class="{ 'habit-calendar__cell--today': cell.iso === todayIso }"
+                  :title="`${cell.iso}: ${statusLabel(cell.status)}`"
+                >
+                  <span class="habit-calendar__num">{{ cell.dayNum }}</span>
+                  <ColorIntensitySquare
+                    class="habit-calendar__bar"
+                    palette="semantic"
+                    :level="levelForStatus(cell.status)"
+                  />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       <div class="d-flex flex-wrap ga-4 mb-10 text-caption text-medium-emphasis">
         <span class="d-flex align-center ga-2">
@@ -95,6 +112,7 @@ const snackPause = ref(false);
 
 const habitEmoji = computed(() => splitHabitTitle(habit.value?.title || "").emoji || "🌿");
 const habitTitle = computed(() => splitHabitTitle(habit.value?.title || "").text || habit.value?.title || "");
+const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 const range = computed(() => {
   const days = [];
@@ -110,7 +128,45 @@ const range = computed(() => {
   return days;
 });
 
-const heatmapCells = computed(() => range.value.map((iso) => ({ iso, status: logsByDate.value[iso] || "none" })));
+const todayIso = computed(() => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+});
+
+const heatmapWeeks = computed(() => {
+  const firstDate = isoToDate(range.value[0]);
+  const lastDate = isoToDate(range.value[range.value.length - 1]);
+
+  const start = new Date(firstDate);
+  const startWeekday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - startWeekday);
+
+  const end = new Date(lastDate);
+  const endWeekday = (end.getDay() + 6) % 7;
+  end.setDate(end.getDate() + (6 - endWeekday));
+
+  const rangeSet = new Set(range.value);
+  const cells = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    const iso = toIso(cursor);
+    cells.push({
+      iso,
+      dayNum: cursor.getDate(),
+      inRange: rangeSet.has(iso),
+      status: logsByDate.value[iso] || "none",
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+});
 
 const statCards = computed(() => {
   const h = habit.value;
@@ -144,6 +200,18 @@ function statusLabel(st) {
   if (st === "micro") return "Микро";
   if (st === "missed") return "Пропуск";
   return "Нет данных";
+}
+
+function isoToDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+
+function toIso(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 async function load() {
@@ -188,38 +256,93 @@ onMounted(load);
 .habit-show__emoji {
   line-height: 1.2;
 }
-.heatmap {
-  grid-template-columns: repeat(10, 1fr);
-  gap: 6px;
-  max-width: 420px;
-}
-.heatmap__cell {
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: default;
-  border-radius: 6px;
+.habit-calendar {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85);
   overflow: hidden;
-  transition: transform 0.12s ease;
 }
-.heatmap__cell:hover {
-  transform: scale(1.08);
-}
-.heatmap__sq {
-  display: block;
+.habit-calendar__table {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 6px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.habit-calendar__th {
+  padding: 10px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: rgba(var(--v-theme-on-surface-variant), 0.95);
+  background: rgba(250, 250, 252, 0.72);
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.18);
+  border-right: 1px solid rgba(var(--v-theme-outline), 0.1);
+}
+.habit-calendar__th:last-child {
+  border-right: none;
+}
+.habit-calendar__td {
+  padding: 0;
+  vertical-align: top;
+  border-right: 1px solid rgba(var(--v-theme-outline), 0.1);
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.1);
+  background: rgba(255, 255, 255, 0.28);
+}
+.habit-calendar__td:last-child {
+  border-right: none;
+}
+tbody tr:last-child .habit-calendar__td {
+  border-bottom: none;
+}
+.habit-calendar__td--pad {
+  background: rgba(250, 250, 252, 0.45);
+}
+.habit-calendar__cell {
+  display: flex;
+  flex-direction: column;
+  min-height: 64px;
+  padding: 8px 6px 6px;
+}
+.habit-calendar__num {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgb(var(--v-theme-on-surface));
+}
+.habit-calendar__cell--today .habit-calendar__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.625rem;
+  min-height: 1.625rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+.habit-calendar__bar {
+  display: block;
+  margin-top: auto;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+@media (min-width: 600px) {
+  .habit-calendar__cell {
+    min-height: 78px;
+    padding: 10px 8px 8px;
+  }
+  .habit-calendar__num {
+    font-size: 0.9375rem;
+  }
 }
 .legend-sq {
   display: inline-block;
   width: 14px;
   height: 14px;
   vertical-align: middle;
-}
-@media (prefers-reduced-motion: reduce) {
-  .heatmap__cell:hover {
-    transform: none;
-  }
 }
 </style>

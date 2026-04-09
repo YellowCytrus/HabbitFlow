@@ -4,6 +4,7 @@
     :class="{ 'habit-card--active': isHighlighted }"
     elevation="2"
     rounded="lg"
+    @click="$emit('click')"
   >
     <div class="d-flex flex-column flex-sm-row align-sm-center ga-4">
       <div class="habit-card__icon text-h4 flex-shrink-0">{{ displayEmoji || defaultIcon }}</div>
@@ -17,7 +18,7 @@
           color="primary"
           class="text-none"
           :disabled="todayStatus === 'full'"
-          @click="$emit('done')"
+          @click.stop="$emit('done')"
         >
           Готово
         </v-btn>
@@ -28,7 +29,7 @@
           variant="tonal"
           class="text-none"
           :disabled="todayStatus === 'full' || todayStatus === 'micro'"
-          @click="$emit('micro')"
+          @click.stop="$emit('micro')"
         >
           Микро
         </v-btn>
@@ -37,7 +38,7 @@
           variant="outlined"
           class="text-none"
           :disabled="todayStatus === 'missed' || todayStatus === 'full'"
-          @click="$emit('skip')"
+          @click.stop="$emit('skip')"
         >
           Пропуск
         </v-btn>
@@ -55,7 +56,7 @@ const props = defineProps({
   todayStatus: { type: String, default: "none" },
 });
 
-defineEmits(["done", "micro", "skip"]);
+defineEmits(["click", "done", "micro", "skip"]);
 
 const parsed = computed(() => splitHabitTitle(props.habit.title));
 const displayEmoji = computed(() => parsed.value.emoji);
@@ -79,6 +80,7 @@ const isHighlighted = computed(() => props.todayStatus === "micro" || props.toda
   border: 1px solid rgba(var(--v-theme-primary), 0.35);
 }
 .transition-surface {
+  cursor: pointer;
   transition:
     background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
     box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),

@@ -48,6 +48,7 @@
       :key="h.id"
       :habit="h"
       :today-status="statusByHabit[h.id] || 'none'"
+      @click="openDetails(h.id)"
       @done="mark(h, 'full')"
       @micro="mark(h, 'micro')"
       @skip="mark(h, 'missed')"
@@ -57,6 +58,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { api } from "../api/client";
 import { localToday } from "../util/date";
 import HabitCard from "../components/HabitCard.vue";
@@ -66,6 +68,7 @@ const habits = ref([]);
 const statusByHabit = reactive({});
 const error = ref("");
 const userName = ref("");
+const router = useRouter();
 
 const formattedDate = computed(() => {
   const [y, m, d] = today.split("-").map(Number);
@@ -122,6 +125,10 @@ async function mark(h, status) {
   } catch (e) {
     error.value = e.response?.data?.detail || "Не удалось сохранить.";
   }
+}
+
+function openDetails(habitId) {
+  router.push({ name: "habits-show", params: { id: habitId } });
 }
 
 onMounted(load);
