@@ -47,9 +47,17 @@ wait_for_db_healthy() {
 
   echo "Waiting for Postgres healthcheck..."
   while (( attempt <= max_attempts )); do
+    local container_id
     local state
-    state="$(docker compose ps --format json db 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print((d[0].get('Health') or '').lower() if d else '')" || true)"
-    if [[ "$state" == "healthy" ]]; then
+
+    container_id="$(docker compose ps -q db 2>/dev/null || true)"
+    if [[ -n "$container_id" ]]; then
+      state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+    else
+      state=""
+    fi
+
+    if [[ "$state" == "healthy" || "$state" == "running" ]]; then
       echo "Postgres is healthy."
       return
     fi
