@@ -20,13 +20,13 @@
           v-for="em in iconChoices"
           :key="em"
           size="large"
-          variant="outlined"
+          :variant="selectedEmoji === em ? 'flat' : 'outlined'"
           class="icon-pick"
-          :color="selectedEmoji === em ? 'primary' : undefined"
+          :color="selectedEmoji === em ? 'primary-container' : undefined"
           :class="{ 'icon-pick--on': selectedEmoji === em }"
           @click="selectedEmoji = em"
         >
-          <span class="text-h6">{{ em }}</span>
+          <span class="text-h6" :class="{ 'icon-pick__emoji--on': selectedEmoji === em }">{{ em }}</span>
         </v-btn>
       </div>
 
@@ -48,9 +48,9 @@
         Что можно сделать за 30 секунд, когда совсем нет сил?
       </p>
 
-      <v-card class="pa-6 mb-8" variant="outlined" rounded="lg" color="surface">
-        <h2 class="text-subtitle-1 font-weight-bold mb-2">Зачем микро-шаг?</h2>
-        <p class="text-body-2 text-medium-emphasis mb-0">
+      <v-card class="pa-6 mb-8" variant="outlined" rounded="lg" color="surface-variant">
+        <h2 class="text-subtitle-1 font-weight-bold mb-2 habit-help-title">Зачем микро-шаг?</h2>
+        <p class="text-body-2 mb-0 habit-help-text">
           В тяжёлые дни можно отметить микро-шаг вместо полного выполнения. Это лучше, чем ничего, и помогает
           сохранить привычку.
         </p>
@@ -61,13 +61,33 @@
           <v-expansion-panel-title>Дополнительно</v-expansion-panel-title>
           <v-expansion-panel-text>
             <v-text-field
-              v-model="reminderTime"
-              label="Время напоминания"
-              type="time"
+              :model-value="reminderTimeLabel"
+              label="Время напоминания (необязательно)"
+              prepend-inner-icon="mdi-clock-outline"
               class="mb-4"
-              hint="Необязательно"
-              persistent-hint
+              readonly
+              @click="openTimePicker"
             />
+            <v-dialog v-model="timePickerOpen" max-width="360">
+              <v-card>
+                <v-card-title class="text-subtitle-1 font-weight-medium pt-5 pb-2">Время напоминания</v-card-title>
+                <v-card-text class="pt-0">
+                  <v-time-picker
+                    v-model="timePickerValue"
+                    format="24hr"
+                    title=""
+                    color="primary"
+                    class="habit-time-picker"
+                  />
+                </v-card-text>
+                <v-card-actions class="px-5 pb-5">
+                  <v-btn variant="text" class="text-none" @click="clearTime">Очистить</v-btn>
+                  <v-spacer />
+                  <v-btn variant="text" class="text-none" @click="cancelTimePicker">Отмена</v-btn>
+                  <v-btn color="primary" class="text-none" @click="applyTimePicker">Готово</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
             <v-switch
               v-model="adaptiveReminder"
               label="Адаптивное напоминание"
@@ -76,12 +96,6 @@
               hide-details
             />
             <RecurrencePicker v-model="recurrenceRule" class="mb-4" />
-            <TimeSlotPicker
-              :deadline-type="deadlineType"
-              :deadline-value="deadlineValue"
-              @update:deadline-type="deadlineType = $event"
-              @update:deadline-value="deadlineValue = $event"
-            />
           </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
@@ -101,7 +115,6 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../api/client";
 import RecurrencePicker from "../components/RecurrencePicker.vue";
-import TimeSlotPicker from "../components/TimeSlotPicker.vue";
 import { habitTitleWithEmoji, splitHabitTitle } from "../util/habitDisplay";
 
 const route = useRoute();
@@ -116,11 +129,31 @@ const selectedEmoji = ref("🌱");
 const titlePlain = ref("");
 const microStep = ref("");
 const reminderTime = ref("");
+const timePickerOpen = ref(false);
+const timePickerValue = ref("08:00");
 const adaptiveReminder = ref(false);
 const recurrenceRule = ref({ type: "daily" });
-const deadlineType = ref("slot");
-const deadlineValue = ref("morning");
 const error = ref("");
+const reminderTimeLabel = computed(() => reminderTime.value || "Не выбрано");
+
+function openTimePicker() {
+  timePickerValue.value = reminderTime.value || "08:00";
+  timePickerOpen.value = true;
+}
+
+function cancelTimePicker() {
+  timePickerOpen.value = false;
+}
+
+function applyTimePicker() {
+  reminderTime.value = timePickerValue.value || "";
+  timePickerOpen.value = false;
+}
+
+function clearTime() {
+  reminderTime.value = "";
+  timePickerOpen.value = false;
+}
 
 onMounted(async () => {
   if (!isEdit.value) return;
@@ -133,8 +166,6 @@ onMounted(async () => {
     reminderTime.value = data.reminder_time ? String(data.reminder_time).slice(0, 5) : "";
     adaptiveReminder.value = data.adaptive_reminder;
     recurrenceRule.value = data.recurrence_rule || { type: "daily" };
-    deadlineType.value = data.deadline_type;
-    deadlineValue.value = data.deadline_value;
   } catch {
     error.value = "Не удалось загрузить привычку.";
   }
@@ -159,8 +190,6 @@ async function submit() {
     reminder_time: reminderTime.value ? `${reminderTime.value}:00` : null,
     adaptive_reminder: adaptiveReminder.value,
     recurrence_rule: recurrenceRule.value,
-    deadline_type: deadlineType.value,
-    deadline_value: deadlineValue.value,
   };
   try {
     if (isEdit.value) {
@@ -178,9 +207,34 @@ async function submit() {
 <style scoped>
 .icon-pick {
   min-width: 3rem;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .icon-pick--on {
   transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.22);
+}
+
+.icon-pick__emoji--on {
+  filter: saturate(1.15);
+}
+
+.habit-help-title {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.habit-help-text {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.habit-form-page :deep(.v-expansion-panel-title) {
+  font-weight: 600;
+}
+
+.habit-form-page :deep(.v-expansion-panel-text__wrapper) {
+  padding-top: 8px;
+}
+
+.habit-time-picker {
+  border-radius: 16px;
 }
 </style>

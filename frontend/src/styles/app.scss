@@ -177,6 +177,15 @@ body {
   --v-field-border-opacity: 0.22;
 }
 
+.hf-app .v-field {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hf-app .v-field .v-field__input,
+.hf-app .v-field .v-label {
+  color: rgb(var(--v-theme-on-surface));
+}
+
 .hf-app .v-field--focused .v-field__outline {
   --v-field-border-width: 1.5px;
 }
