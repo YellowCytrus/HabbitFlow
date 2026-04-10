@@ -9,6 +9,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
+# Секреты только для владельца деплоя (чтение .env другими пользователями ОС).
+if [[ -f .env ]]; then
+  chmod 600 .env 2>/dev/null || true
+fi
+
 require_sudo() {
   if [[ "$EUID" -eq 0 ]]; then
     return

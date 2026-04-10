@@ -1,0 +1,16 @@
+# Секреты и локальная конфигурация не должны попадать в контекст сборки.
+.env
+**/.env
+.env.*
+!.env.example
+**/.env.example
+
+.git
+.gitignore
+*.md
+.venv
+__pycache__
+.pytest_cache
+node_modules
+frontend/dist
+frontend/node_modules

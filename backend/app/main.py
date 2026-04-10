@@ -3,11 +3,13 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.database import engine
 from app.routers import auth, calendar, habits, notifications, profile
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -52,6 +54,18 @@ async def request_logging(request: Request, call_next):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def health_ready():
+    """Проверка доступности БД (для диагностики на сервере; /health остаётся лёгким)."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        log.exception("readiness check: database unreachable")
+        raise HTTPException(status_code=503, detail="database unavailable")
+    return {"status": "ok", "database": "ok"}
 
 
 app.include_router(auth.router, prefix="/api/v1")
