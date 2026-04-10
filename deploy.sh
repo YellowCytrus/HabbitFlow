@@ -9,11 +9,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-# Секреты только для владельца деплоя (чтение .env другими пользователями ОС).
-if [[ -f .env ]]; then
-  chmod 600 .env 2>/dev/null || true
-fi
-
 require_sudo() {
   if [[ "$EUID" -eq 0 ]]; then
     return
@@ -46,6 +41,56 @@ ensure_docker_running() {
   sudo systemctl enable --now docker
 }
 
+# Подхватываем корневой .env в оболочку (имена БД/юзера для ensure_database_exists).
+load_root_env() {
+  POSTGRES_USER="${POSTGRES_USER:-habitflow}"
+  POSTGRES_DB="${POSTGRES_DB:-habitflow}"
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-habitflow}"
+  if [[ -f .env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+  fi
+  POSTGRES_USER="${POSTGRES_USER:-habitflow}"
+  POSTGRES_DB="${POSTGRES_DB:-habitflow}"
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-habitflow}"
+}
+
+preflight_env() {
+  if [[ ! -f .env ]]; then
+    echo "Нет файла .env в корне репозитория (его читает docker-compose)." >&2
+    echo "Создайте его из шаблона и заполните секреты:" >&2
+    echo "  cp backend/.env.example .env && ${EDITOR:-nano} .env" >&2
+    exit 1
+  fi
+
+  chmod 600 .env 2>/dev/null || true
+
+  load_root_env
+
+  if [[ -z "${JWT_SECRET:-}" || "$JWT_SECRET" == "dev-change-me-in-production" || "$JWT_SECRET" == "replace-with-long-random-string" ]]; then
+    echo "Предупреждение: задайте в .env надёжный JWT_SECRET (длинная случайная строка)." >&2
+  fi
+
+  if [[ "$POSTGRES_PASSWORD" == "habitflow" ]]; then
+    echo "Предупреждение: POSTGRES_PASSWORD по умолчанию. Для продакшена укажите сильный пароль в .env." >&2
+  fi
+}
+
+ensure_docker_usable() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+  echo "Docker недоступен: нет прав или демон не запущен." >&2
+  if [[ "$EUID" -ne 0 ]] && groups | grep -q '\bdocker\b'; then
+    echo "Вы в группе docker, но команда не прошла — проверьте systemctl status docker." >&2
+  elif [[ "$EUID" -ne 0 ]]; then
+    echo "Либо запустите: sudo ./deploy.sh , либо: sudo usermod -aG docker \"\$USER\" и перелогиньтесь." >&2
+  fi
+  exit 1
+}
+
 wait_for_db_healthy() {
   local max_attempts=30
   local attempt=1
@@ -75,20 +120,51 @@ wait_for_db_healthy() {
   exit 1
 }
 
+wait_for_api_healthy() {
+  local max_attempts=45
+  local attempt=1
+
+  echo "Waiting for API healthcheck..."
+  while (( attempt <= max_attempts )); do
+    local container_id
+    local state
+
+    container_id="$(docker compose ps -q api 2>/dev/null || true)"
+    if [[ -n "$container_id" ]]; then
+      state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+      if [[ "$state" == "healthy" ]]; then
+        echo "API is healthy."
+        return
+      fi
+    fi
+    sleep 2
+    (( attempt++ ))
+  done
+
+  echo "API did not become healthy in time." >&2
+  docker compose logs api --tail=80 || true
+  exit 1
+}
+
 ensure_database_exists() {
-  local db_name="habitflow"
-  local db_user="habitflow"
   local exists
 
-  echo "Ensuring database '${db_name}' exists..."
-  exists="$(docker compose exec -T db psql -U "$db_user" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${db_name}'" | tr -d '[:space:]' || true)"
+  load_root_env
+  echo "Ensuring database '${POSTGRES_DB}' exists..."
+  exists="$(docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'" | tr -d '[:space:]' || true)"
   if [[ "$exists" != "1" ]]; then
-    docker compose exec -T db psql -U "$db_user" -d postgres -c "CREATE DATABASE ${db_name};"
+    docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE \"${POSTGRES_DB}\";"
   fi
 }
 
+preflight_env
+
 install_docker_if_missing
 ensure_docker_running
+ensure_docker_usable
+
+echo "Pulling base images (db)..."
+docker compose pull db 2>/dev/null || true
 
 echo "Building containers..."
 docker compose build db api
@@ -102,6 +178,7 @@ docker compose run --rm api sh -c "alembic upgrade head"
 
 echo "Starting API..."
 docker compose up -d api
+wait_for_api_healthy
 
 if [[ "${SKIP_FRONTEND:-0}" != "1" && -f frontend/package.json ]]; then
   echo "Building and starting frontend..."
