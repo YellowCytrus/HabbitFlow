@@ -1,6 +1,7 @@
 import re
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Tuple
+from zoneinfo import ZoneInfo
 
 from app.models import DeadlineType, Habit
 
@@ -36,37 +37,57 @@ def slot_window_hours(slot: str) -> Tuple[int, int] | None:
     return None
 
 
-def _combine(d: date, t: time) -> datetime:
-    return datetime.combine(d, t)
+def _safe_tz(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo("UTC")
 
 
-def is_within_full_deadline(habit: Habit, at: datetime, log_date: date) -> bool:
-    """Full completion allowed only inside deadline window for that calendar day."""
-    if log_date != at.date():
+def _as_utc(at: datetime) -> datetime:
+    """Naive datetimes are treated as UTC (Docker / servers often use naive UTC)."""
+    if at.tzinfo is None:
+        return at.replace(tzinfo=timezone.utc)
+    return at.astimezone(timezone.utc)
+
+
+def is_within_full_deadline(
+    habit: Habit,
+    at: datetime,
+    log_date: date,
+    user_timezone: str = "UTC",
+) -> bool:
+    """Full completion allowed only inside deadline window for log_date in the user's timezone."""
+    tz = _safe_tz(user_timezone)
+    at_utc = _as_utc(at)
+    at_local = at_utc.astimezone(tz)
+    if at_local.date() != log_date:
         return False
     if habit.deadline_type is None or not habit.deadline_value:
-        # No configured deadline means full completion is allowed all day.
         return True
     if habit.deadline_type == DeadlineType.exact:
         start_t, end_t = parse_exact_window(habit.deadline_value)
-        start_dt = _combine(log_date, start_t)
-        end_dt = _combine(log_date, end_t)
-        if end_dt <= start_dt:
-            end_dt += timedelta(days=1)
-        return start_dt <= at <= end_dt
+        start_local = datetime.combine(log_date, start_t, tzinfo=tz)
+        end_local = datetime.combine(log_date, end_t, tzinfo=tz)
+        if end_local <= start_local:
+            end_local += timedelta(days=1)
+        return start_local <= at_local <= end_local
     wh = slot_window_hours(habit.deadline_value)
     if not wh:
         return False
     start_h, end_h = wh
-    h = at.hour
+    h = at_local.hour
     if start_h < end_h:
         return start_h <= h < end_h
     return h >= start_h or h < end_h
 
 
-def is_micro_allowed(at: datetime, log_date: date) -> bool:
-    """Micro-step allowed until end of log_date (23:59:59.999)."""
-    if at.date() != log_date:
+def is_micro_allowed(at: datetime, log_date: date, user_timezone: str = "UTC") -> bool:
+    """Micro-step allowed until end of log_date in the user's timezone (browser sends local calendar date)."""
+    tz = _safe_tz(user_timezone)
+    at_utc = _as_utc(at)
+    at_local = at_utc.astimezone(tz)
+    if at_local.date() != log_date:
         return False
-    end_of_day = _combine(log_date, time(23, 59, 59, 999000))
-    return at <= end_of_day
+    end_of_day = datetime.combine(log_date, time(23, 59, 59, 999000), tzinfo=tz)
+    return at_local <= end_of_day

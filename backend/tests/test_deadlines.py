@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from app.models import DeadlineType
 from app.services.deadlines import is_micro_allowed, is_within_full_deadline, parse_exact_window, slot_window_hours
@@ -53,3 +53,15 @@ def test_micro_allowed_same_day():
 def test_micro_allowed_wrong_day():
     at = datetime(2026, 4, 5, 22, 0, 0)
     assert is_micro_allowed(at, date(2026, 4, 4)) is False
+
+
+def test_micro_allowed_matches_browser_local_date_not_utc_calendar_day():
+    """Frontend sends local YYYY-MM-DD; server uses UTC clock — must use profile timezone."""
+    at_utc = datetime(2026, 4, 4, 22, 0, 0, tzinfo=timezone.utc)
+    assert is_micro_allowed(at_utc, date(2026, 4, 5), "Europe/Moscow") is True
+
+
+def test_full_deadline_exact_uses_user_timezone():
+    h = _H(DeadlineType.exact, "09:00-10:00")
+    at_utc = datetime(2026, 4, 5, 6, 30, 0, tzinfo=timezone.utc)
+    assert is_within_full_deadline(h, at_utc, date(2026, 4, 5), "Europe/Moscow") is True

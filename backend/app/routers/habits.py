@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import CurrentUser
-from app.models import Habit, HabitLog, HabitLogStatus, SubscriptionPlan, UserSubscription
+from app.models import Habit, HabitLog, HabitLogStatus, NotificationSettings, SubscriptionPlan, UserSubscription
 from app.schemas import HabitCreate, HabitDetailOut, HabitLogCreate, HabitLogOut, HabitOut
 from app.services.deadlines import is_micro_allowed, is_within_full_deadline
 from app.services.notification_service import deactivate_habit_notification, sync_habit_notification
@@ -150,12 +150,15 @@ def upsert_log(
     if body.status == HabitLogStatus.micro and not (h.micro_step and h.micro_step.strip()):
         raise HTTPException(status_code=400, detail="This habit has no micro-step defined")
 
-    now = datetime.now()
+    settings = db.query(NotificationSettings).filter(NotificationSettings.user_id == user.id).first()
+    # Align with auth defaults / model default when row missing (legacy users).
+    user_tz = (settings.user_timezone if settings and settings.user_timezone.strip() else "Asia/Krasnoyarsk")
+    now = datetime.now(timezone.utc)
     if body.status == HabitLogStatus.full:
-        if not is_within_full_deadline(h, now, log_date):
+        if not is_within_full_deadline(h, now, log_date, user_tz):
             raise HTTPException(status_code=400, detail="Deadline passed")
     elif body.status == HabitLogStatus.micro:
-        if not is_micro_allowed(now, log_date):
+        if not is_micro_allowed(now, log_date, user_tz):
             raise HTTPException(status_code=400, detail="Deadline passed")
     elif body.status == HabitLogStatus.missed:
         pass

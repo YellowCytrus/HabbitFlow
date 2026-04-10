@@ -70,6 +70,18 @@ wait_for_db_healthy() {
   exit 1
 }
 
+ensure_database_exists() {
+  local db_name="habitflow"
+  local db_user="habitflow"
+  local exists
+
+  echo "Ensuring database '${db_name}' exists..."
+  exists="$(docker compose exec -T db psql -U "$db_user" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${db_name}'" | tr -d '[:space:]' || true)"
+  if [[ "$exists" != "1" ]]; then
+    docker compose exec -T db psql -U "$db_user" -d postgres -c "CREATE DATABASE ${db_name};"
+  fi
+}
+
 install_docker_if_missing
 ensure_docker_running
 
@@ -78,6 +90,7 @@ docker compose build db api
 echo "Starting database..."
 docker compose up -d db
 wait_for_db_healthy
+ensure_database_exists
 
 echo "Applying migrations..."
 docker compose run --rm api sh -c "alembic upgrade head"
