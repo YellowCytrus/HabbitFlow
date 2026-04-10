@@ -5,7 +5,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md /app/
+COPY pyproject.toml /app/
+# pyproject.toml объявляет readme = "README.md"; без файла pip install -e падает.
+# На сервере иногда нет README в копии репо — достаточно минимального текста.
+RUN printf '%s\n' '# HabitFlow' > /app/README.md
 COPY backend /app/backend
 
 RUN pip install --no-cache-dir -U pip && pip install --no-cache-dir -e /app
