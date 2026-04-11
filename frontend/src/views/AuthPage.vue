@@ -473,14 +473,32 @@ function onRegCodePaste(event) {
 
 <style scoped>
 .auth-wrap {
-  max-width: 1120px;
+  max-width: var(--hf-content-max);
   margin: 0 auto;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+@media (min-width: 480px) {
+  .auth-wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .auth-wrap__bar {
+    margin: -8px -16px 24px;
+  }
+}
+@media (min-width: 768px) {
+  .auth-wrap {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .auth-wrap__bar {
+    margin: -8px -24px 26px;
+  }
 }
 .auth-wrap__bar {
   padding: 12px 16px;
-  margin: -8px -16px 24px;
+  margin: -8px -12px 24px;
   border-radius: 0 0 18px 18px;
   background: rgba(255, 255, 255, 0.48);
   backdrop-filter: saturate(180%) blur(20px);
@@ -538,7 +556,14 @@ function onRegCodePaste(event) {
   height: 28px;
   width: 28px;
 }
-@media (min-width: 960px) {
+@media (max-width: 374px) {
+  .auth-wrap__bar {
+    margin: -4px -12px 20px;
+    padding: 10px 12px;
+    border-radius: 0 0 14px 14px;
+  }
+}
+@media (min-width: 1280px) {
   .auth-wrap {
     padding-left: 32px;
     padding-right: 32px;

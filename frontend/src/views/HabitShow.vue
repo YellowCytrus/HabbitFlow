@@ -330,7 +330,7 @@ tbody tr:last-child .habit-calendar__td {
   border-radius: 4px;
   flex-shrink: 0;
 }
-@media (min-width: 600px) {
+@media (min-width: 768px) {
   .habit-calendar__cell {
     min-height: 78px;
     padding: 10px 8px 8px;

@@ -198,7 +198,7 @@ onMounted(applyLiquidThemeFromSeed);
     transform: translate3d(2.5%, -1%, 0);
   }
 }
-@media (max-width: 959px) {
+@media (max-width: 1023px) {
   .liquid-bg {
     inset: -10% -24%;
   }

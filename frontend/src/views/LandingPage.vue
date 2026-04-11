@@ -37,8 +37,8 @@
       </v-btn>
     </header>
 
-    <section class="landing__hero text-center py-12 py-md-16">
-      <h1 class="text-h4 text-md-h3 font-weight-medium mb-4" data-reveal>
+    <section class="landing__hero text-center py-10 py-md-12 py-lg-16">
+      <h1 class="landing__hero-title font-weight-medium mb-4" data-reveal>
         Добрый трекер привычек
       </h1>
       <p class="text-body-1 text-medium-emphasis mx-auto landing__lead mb-8" style="max-width: 36rem" data-reveal>
@@ -196,11 +196,16 @@ onUnmounted(() => {
 .landing {
   --landing-tilt-x: 0;
   --landing-tilt-y: 0;
-  max-width: 1120px;
+  max-width: var(--hf-content-max);
   margin: 0 auto;
-  padding: 16px 20px 0;
+  padding: 12px 12px 0;
   position: relative;
   isolation: isolate;
+}
+.landing__hero-title {
+  font-size: clamp(1.35rem, 2.8vw + 0.85rem, 2.125rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 .landing > *:not(.landing__liquid) {
   position: relative;
@@ -266,10 +271,10 @@ onUnmounted(() => {
   font-size: 1.125rem;
 }
 .landing__footer {
-  max-width: 1120px;
+  max-width: var(--hf-content-max);
   margin: 0 auto;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 @keyframes landing-float-a {
   0%,
@@ -293,7 +298,52 @@ onUnmounted(() => {
       rotate(-5deg) scale(1.07);
   }
 }
-@media (min-width: 960px) {
+@media (max-width: 374px) {
+  .landing {
+    padding: 8px 10px 0;
+  }
+  .landing__top {
+    margin: -4px -10px 14px;
+    padding: 10px 12px;
+    border-radius: 0 0 14px 14px;
+  }
+  .landing__footer {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+@media (min-width: 480px) {
+  .landing {
+    padding: 14px 16px 0;
+  }
+  .landing__footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+@media (min-width: 768px) {
+  .landing {
+    padding: 20px 24px 0;
+  }
+  .landing__top {
+    margin: -8px -24px 20px;
+    padding: 12px 20px;
+  }
+  .landing__footer {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+@media (min-width: 1024px) {
+  .landing__liquid {
+    inset: -16% -9% auto;
+    height: 640px;
+  }
+  .landing__blob--a {
+    left: -90px;
+  }
+}
+@media (min-width: 1280px) {
   .landing {
     padding: 24px 32px 0;
   }
@@ -309,7 +359,7 @@ onUnmounted(() => {
     padding: 14px 24px;
   }
 }
-@media (max-width: 959px) {
+@media (max-width: 1023px) {
   .landing__liquid {
     height: 500px;
   }
@@ -325,6 +375,14 @@ onUnmounted(() => {
   .landing__blob--b {
     right: -170px;
     top: 70px;
+  }
+}
+@media (min-width: 1920px) {
+  .landing__liquid {
+    height: 760px;
+  }
+  .landing__blob {
+    opacity: 0.5;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -51,13 +51,23 @@ onUnmounted(stopReminders);
   position: relative;
 }
 .hf-main__inner {
-  max-width: 1120px;
+  max-width: var(--hf-content-max);
   margin: 0 auto;
-  padding: 16px 20px 48px;
+  padding: 12px 12px 40px;
   width: 100%;
   box-sizing: border-box;
 }
-@media (min-width: 960px) {
+@media (min-width: 480px) {
+  .hf-main__inner {
+    padding: 16px 18px 44px;
+  }
+}
+@media (min-width: 768px) {
+  .hf-main__inner {
+    padding: 20px 24px 52px;
+  }
+}
+@media (min-width: 1280px) {
   .hf-main__inner {
     padding: 24px 32px 56px;
   }

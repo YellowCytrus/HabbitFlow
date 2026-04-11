@@ -8,19 +8,19 @@
     </v-card>
 
     <v-row class="mb-8" dense>
-      <v-col cols="12" sm="4">
+      <v-col cols="12" md="4">
         <v-card class="pa-4 text-center h-100 hf-glass-card hf-glass-card--metric" elevation="2">
           <div class="text-h4 font-weight-medium text-primary">{{ stats.done }}</div>
           <div class="text-body-2 text-medium-emphasis">Выполнено</div>
         </v-card>
       </v-col>
-      <v-col cols="12" sm="4">
+      <v-col cols="12" md="4">
         <v-card class="pa-4 text-center h-100 hf-glass-card hf-glass-card--metric" elevation="2">
           <div class="text-h4 font-weight-medium text-tertiary">{{ stats.micro }}</div>
           <div class="text-body-2 text-medium-emphasis">Микро-шаг</div>
         </v-card>
       </v-col>
-      <v-col cols="12" sm="4">
+      <v-col cols="12" md="4">
         <v-card class="pa-4 text-center h-100 hf-glass-card hf-glass-card--metric" elevation="2">
           <div class="text-h4 font-weight-medium">{{ stats.total }}</div>
           <div class="text-body-2 text-medium-emphasis">Всего привычек</div>
@@ -28,9 +28,14 @@
       </v-col>
     </v-row>
 
-    <div class="d-flex align-center justify-space-between mb-4">
-      <h2 class="text-h6 font-weight-medium">Сегодня</h2>
-      <v-btn color="primary" class="text-none hf-glass-btn" :to="{ name: 'habits-new' }" prepend-icon="mdi-plus">
+    <div class="d-flex flex-column flex-sm-row align-stretch align-sm-center justify-space-between ga-3 mb-4">
+      <h2 class="text-h6 font-weight-medium mb-0">Сегодня</h2>
+      <v-btn
+        color="primary"
+        class="text-none hf-glass-btn w-100 w-sm-auto"
+        :to="{ name: 'habits-new' }"
+        prepend-icon="mdi-plus"
+      >
         Добавить
       </v-btn>
     </div>

@@ -1,5 +1,12 @@
 /* Design tokens — aligned with apple_preview.html + liquid glass */
+/* Breakpoints (px): sm 480, md 768, lg 1024, xl 1280, xxl 1920 — sync vuetify-settings.scss + plugins/vuetify.js */
 :root {
+  --hf-bp-sm: 480px;
+  --hf-bp-md: 768px;
+  --hf-bp-lg: 1024px;
+  --hf-bp-xl: 1280px;
+  --hf-bp-xxl: 1920px;
+  --hf-content-max: 1200px;
   --hf-black: #1d1d1f;
   --hf-white: #ffffff;
   --hf-light-gray: #f5f5f7;
@@ -97,6 +104,14 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.hf-app .hf-nav-drawer.v-navigation-drawer {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: var(--hf-blur);
+  -webkit-backdrop-filter: var(--hf-blur);
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.06);
 }
 
 /* Primary CTA — Apple pill */

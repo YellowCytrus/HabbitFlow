@@ -8,7 +8,7 @@
         prepend-icon="mdi-chevron-left"
         @click="shift(-1)"
       >
-        Пред.
+        <span class="cal-nav__label">Пред.</span>
       </v-btn>
       <h2 class="cal-nav__title text-h6 font-weight-medium">
         {{ monthTitle }}
@@ -20,7 +20,7 @@
         append-icon="mdi-chevron-right"
         @click="shift(1)"
       >
-        След.
+        <span class="cal-nav__label">След.</span>
       </v-btn>
     </div>
 
@@ -282,7 +282,7 @@ const weeks = computed(() => {
   transition: background-color 0.15s ease;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 768px) {
   .cal-cell {
     min-height: 92px;
     padding: 10px 8px 8px;
@@ -323,9 +323,41 @@ const weeks = computed(() => {
   color: rgba(var(--v-theme-on-surface), 0.38);
 }
 
-@media (min-width: 600px) {
+@media (min-width: 768px) {
   .cal-cell__num {
     font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .cal-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .cal-nav__btn :deep(.v-btn__content) {
+    gap: 0;
+  }
+  .cal-nav__btn {
+    min-width: 40px;
+    padding-inline: 6px;
+  }
+  .cal-th {
+    padding: 8px 2px;
+    font-size: 0.6875rem;
+  }
+  .cal-cell {
+    min-height: 58px;
+    padding: 5px 3px 4px;
+  }
+  .cal-cell__bar {
+    height: 4px;
   }
 }
 

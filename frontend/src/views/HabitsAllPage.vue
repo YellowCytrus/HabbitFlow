@@ -1,11 +1,18 @@
 <template>
   <div class="habits-all-page pb-8">
-    <div class="d-flex align-center justify-space-between mb-4">
+    <div class="d-flex flex-column flex-sm-row align-stretch align-sm-center justify-space-between ga-3 mb-4">
       <div>
         <p class="text-body-2 text-medium-emphasis mb-1">Полный список</p>
         <h1 class="text-h5 font-weight-medium mb-0">Все привычки</h1>
       </div>
-      <v-btn color="primary" class="text-none" :to="{ name: 'habits-new' }" prepend-icon="mdi-plus">Добавить</v-btn>
+      <v-btn
+        color="primary"
+        class="text-none w-100 w-sm-auto"
+        :to="{ name: 'habits-new' }"
+        prepend-icon="mdi-plus"
+      >
+        Добавить
+      </v-btn>
     </div>
 
     <v-alert
