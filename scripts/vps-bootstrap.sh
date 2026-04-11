@@ -9,6 +9,9 @@
 #   sudo WITH_WWW=1 ./scripts/vps-bootstrap.sh habbit-flow.ru
 #
 # Если 80/443 заняты (nginx/apache), скрипт остановит их (STOP_CONFLICTS=1 по умолчанию).
+#
+# Повторный запуск без пересборки Docker (только Caddy/UFW/.env-проверка):
+#   SKIP_DEPLOY=1 ./scripts/vps-bootstrap.sh habbit-flow.ru
 set -euo pipefail
 
 DOMAIN="${1:-${DOMAIN:-}}"
@@ -51,11 +54,23 @@ if ss -tlnp 2>/dev/null | grep -qE ':80 |:443 '; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
-echo "=== apt: Docker, Compose, Caddy, UFW ==="
 apt-get update -qq
-apt-get install -y docker.io docker-compose-v2 caddy ufw curl git ca-certificates
 
-systemctl enable --now docker
+# docker.io из Ubuntu конфликтует с containerd.io (часто уже стоит при установке Docker CE с docker.com).
+# Если Docker уже работает — не трогаем пакет docker.io.
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  echo "=== apt: Caddy, UFW (Docker уже есть — docker.io не ставлю) ==="
+  apt-get install -y caddy ufw curl git ca-certificates
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "Нет команды «docker compose». Попробуй: apt-get install -y docker-compose-plugin" >&2
+    exit 1
+  fi
+  systemctl enable --now docker 2>/dev/null || true
+else
+  echo "=== apt: Docker (docker.io), Compose, Caddy, UFW ==="
+  apt-get install -y docker.io docker-compose-v2 caddy ufw curl git ca-certificates
+  systemctl enable --now docker
+fi
 
 echo "=== UFW ==="
 ufw allow OpenSSH
@@ -98,8 +113,12 @@ PY
 fi
 
 echo "=== Docker Compose: деплой ==="
-export COMPOSE_BAKE="${COMPOSE_BAKE:-true}"
-bash "$ROOT/deploy.sh"
+if [[ "${SKIP_DEPLOY:-0}" == "1" ]]; then
+  echo "SKIP_DEPLOY=1 — пропускаю ./deploy.sh (контейнеры уже подняты)."
+else
+  export COMPOSE_BAKE="${COMPOSE_BAKE:-true}"
+  bash "$ROOT/deploy.sh"
+fi
 
 echo "=== Caddy ==="
 CADDY_SITES="$DOMAIN"
