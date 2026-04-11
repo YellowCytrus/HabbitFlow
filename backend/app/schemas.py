@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.models import DeadlineType, HabitLogStatus, ReminderTone, SubscriptionPlan, UserRole
+from app.models import HabitLogStatus, ReminderTone, SubscriptionPlan, UserRole
 
 
 class TokenPair(BaseModel):
@@ -77,8 +77,6 @@ class HabitCreate(BaseModel):
     reminder_time: time | None = None
     adaptive_reminder: bool = False
     recurrence_rule: dict[str, Any]
-    deadline_type: DeadlineType | None = None
-    deadline_value: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class HabitUpdate(HabitCreate):
@@ -94,8 +92,6 @@ class HabitOut(BaseModel):
     reminder_time: time | None
     adaptive_reminder: bool
     recurrence_rule: dict[str, Any]
-    deadline_type: DeadlineType | None
-    deadline_value: str | None
     created_at: datetime
     updated_at: datetime
 

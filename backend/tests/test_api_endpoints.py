@@ -18,8 +18,6 @@ def _habit_body(**overrides):
         "reminder_time": None,
         "adaptive_reminder": False,
         "recurrence_rule": {"type": "daily"},
-        "deadline_type": "exact",
-        "deadline_value": "00:00-23:59",
     }
     base.update(overrides)
     return base
@@ -83,17 +81,6 @@ def test_habit_crud_and_list_filter(client, db_session):
 
     r = client.get(f"/api/v1/habits/{hid}", headers=auth_headers(user.id))
     assert r.status_code == 404
-
-
-def test_create_habit_without_deadlines(client, db_session):
-    user = make_user(db_session)
-    body = _habit_body()
-    body.pop("deadline_type")
-    body.pop("deadline_value")
-    r = client.post("/api/v1/habits", json=body, headers=auth_headers(user.id))
-    assert r.status_code == 201
-    assert r.json()["deadline_type"] is None
-    assert r.json()["deadline_value"] is None
 
 
 def test_habit_logs_list_upsert_missed(client, db_session):

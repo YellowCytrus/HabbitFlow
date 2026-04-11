@@ -4,7 +4,6 @@ from datetime import date, timedelta
 
 from app.database import SessionLocal
 from app.models import (
-    DeadlineType,
     Habit,
     HabitLog,
     HabitLogStatus,
@@ -126,8 +125,8 @@ def main() -> None:
                     micro_step="2 минуты лёгкой разминки",
                     adaptive_reminder=True,
                     recurrence_rule={"type": "daily"},
-                    deadline_type=DeadlineType.slot,
-                    deadline_value="morning",
+                    deadline_type=None,
+                    deadline_value=None,
                 ),
                 Habit(
                     user_id=alina.id,
@@ -136,8 +135,8 @@ def main() -> None:
                     micro_step="Записать хотя бы 1 задачу",
                     adaptive_reminder=False,
                     recurrence_rule={"type": "weekly", "days": [1, 2, 3, 4, 5]},
-                    deadline_type=DeadlineType.exact,
-                    deadline_value="08:30-09:30",
+                    deadline_type=None,
+                    deadline_value=None,
                 ),
                 Habit(
                     user_id=alina.id,
@@ -146,8 +145,8 @@ def main() -> None:
                     micro_step="Прочитать 2 страницы",
                     adaptive_reminder=True,
                     recurrence_rule={"type": "weekly", "days": [1, 3, 5]},
-                    deadline_type=DeadlineType.slot,
-                    deadline_value="evening",
+                    deadline_type=None,
+                    deadline_value=None,
                 ),
             ]
             db.add_all(habits)
