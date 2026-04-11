@@ -72,5 +72,27 @@ services:
       api:
         condition: service_healthy
 
+  # Веб-UI для PostgreSQL (только по профилю). См. scripts/PGADMIN_TEACHER.md
+  pgadmin:
+    image: dpage/pgadmin4:8.14
+    profiles: ["pgadmin"]
+    networks:
+      - habitflow
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-teacher@example.com}
+      # Задай в .env при использовании профиля pgadmin (иначе вход в pgAdmin не заработает).
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      # Снаружи только localhost; для преподавателя из интернета — SSH-туннель или см. инструкцию.
+      - "127.0.0.1:5050:80"
+    volumes:
+      - habitflow_pgadmin:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   habitflow_pg:
+  habitflow_pgadmin:
