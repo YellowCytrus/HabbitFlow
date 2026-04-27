@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import CurrentUser
+from app.integrations.crm import ensure_user_synced_to_crm, sync_habit_log_to_crm, sync_habit_to_crm
 from app.models import Habit, HabitLog, HabitLogStatus, SubscriptionPlan, UserSubscription
 from app.schemas import HabitCreate, HabitDetailOut, HabitLogCreate, HabitLogOut, HabitOut
 from app.services.notification_service import deactivate_habit_notification, sync_habit_notification
@@ -14,6 +16,7 @@ from app.services.recurrence import is_habit_due_on
 from app.services.streak import completion_rate_for_range, compute_streak, count_micro_usage
 
 router = APIRouter(prefix="/habits", tags=["habits"])
+logger = logging.getLogger(__name__)
 
 
 def _habit_out(h: Habit) -> HabitOut:
@@ -55,6 +58,8 @@ def list_habits(
 
 @router.post("", response_model=HabitOut, status_code=status.HTTP_201_CREATED)
 def create_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, body: HabitCreate):
+    if not ensure_user_synced_to_crm(user, db):
+        raise HTTPException(status_code=503, detail="CRM sync required before creating habits")
     sub = db.query(UserSubscription).filter(UserSubscription.user_id == user.id).first()
     plan = sub.plan if sub else SubscriptionPlan.free
     count = db.query(Habit).filter(Habit.user_id == user.id).count()
@@ -79,6 +84,10 @@ def create_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, bod
     sync_habit_notification(db, h)
     db.commit()
     db.refresh(h)
+    try:
+        sync_habit_to_crm(h, db)
+    except Exception:
+        logger.exception("CRM sync failed after habit create for habit %s", h.id)
     return _habit_out(h)
 
 
@@ -102,6 +111,10 @@ def update_habit(db: Annotated[Session, Depends(get_db)], user: CurrentUser, hab
     sync_habit_notification(db, h)
     db.commit()
     db.refresh(h)
+    try:
+        sync_habit_to_crm(h, db)
+    except Exception:
+        logger.exception("CRM sync failed after habit update for habit %s", h.id)
     return _habit_out(h)
 
 
@@ -141,7 +154,17 @@ def upsert_log(
     habit_id: UUID,
     body: HabitLogCreate,
 ):
+    if not ensure_user_synced_to_crm(user, db):
+        raise HTTPException(status_code=503, detail="CRM sync required before habit logging")
     h = _get_owned_habit(db, user.id, habit_id)
+    if not h.crm_id:
+        try:
+            sync_habit_to_crm(h, db)
+            db.refresh(h)
+        except Exception:
+            logger.exception("CRM sync failed before habit log write for habit %s", h.id)
+        if not h.crm_id:
+            raise HTTPException(status_code=503, detail="CRM habit sync required before habit logging")
     log_date = body.date or date.today()
     if not is_habit_due_on(h.recurrence_rule or {}, log_date):
         raise HTTPException(status_code=400, detail="Habit is not scheduled for this date")
@@ -157,9 +180,17 @@ def upsert_log(
         existing.status = body.status
         db.commit()
         db.refresh(existing)
+        try:
+            sync_habit_log_to_crm(existing, db)
+        except Exception:
+            logger.exception("CRM sync failed after habit log update for log %s", existing.id)
         return HabitLogOut.from_orm_log(existing)
-    log = HabitLog(habit_id=habit_id, log_date=log_date, status=body.status)
-    db.add(log)
+    new_log = HabitLog(habit_id=habit_id, log_date=log_date, status=body.status)
+    db.add(new_log)
     db.commit()
-    db.refresh(log)
-    return HabitLogOut.from_orm_log(log)
+    db.refresh(new_log)
+    try:
+        sync_habit_log_to_crm(new_log, db)
+    except Exception:
+        logger.exception("CRM sync failed after habit log create for log %s", new_log.id)
+    return HabitLogOut.from_orm_log(new_log)

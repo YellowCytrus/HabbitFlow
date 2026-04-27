@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import engine
-from app.routers import auth, calendar, habits, notifications, profile
+from app.routers import auth, calendar, habits, notifications, profile, webhooks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("habitflow.request")
@@ -73,3 +73,4 @@ app.include_router(habits.router, prefix="/api/v1")
 app.include_router(profile.router, prefix="/api/v1")
 app.include_router(calendar.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(webhooks.router)

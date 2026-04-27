@@ -1,4 +1,5 @@
-# Фиксированная подсеть — обходит «all predefined address pools have been fully subnetted».
+version: "3.9"
+
 networks:
   habitflow:
     driver: bridge
@@ -7,14 +8,14 @@ networks:
         - subnet: 10.89.0.0/24
           gateway: 10.89.0.1
 
+  shared_net:
+    external: true
+
 services:
   db:
     image: postgres:16-alpine
     networks:
       - habitflow
-    # Порт 5432 наружу не публикуем: сеть только Docker. Иначе с интернета/локалки
-    # можно брутить Postgres. Для pgAdmin с хоста: "5432:5432" только на 127.0.0.1
-    # или отдельный override-файл.
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-habitflow}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-habitflow}
@@ -32,8 +33,10 @@ services:
       context: .
       dockerfile: Dockerfile
     networks:
-      - habitflow
-    # Корневой .env → переменные в контейнере (иначе backend ищет .env в /app/backend и не находит)
+      habitflow:
+      shared_net:
+        aliases:
+          - habitflow-api
     env_file:
       - .env
     environment:
@@ -72,7 +75,6 @@ services:
       api:
         condition: service_healthy
 
-  # Веб-UI для PostgreSQL (только по профилю). См. scripts/PGADMIN_TEACHER.md
   pgadmin:
     image: dpage/pgadmin4:8.14
     profiles: ["pgadmin"]
@@ -80,12 +82,10 @@ services:
       - habitflow
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-teacher@example.com}
-      # Задай в .env при использовании профиля pgadmin (иначе вход в pgAdmin не заработает).
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
-      # Снаружи только localhost; для преподавателя из интернета — SSH-туннель или см. инструкцию.
       - "127.0.0.1:5050:80"
     volumes:
       - habitflow_pgadmin:/var/lib/pgadmin

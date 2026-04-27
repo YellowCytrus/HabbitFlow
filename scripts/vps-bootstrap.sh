@@ -37,20 +37,30 @@ if [[ ! -f "$ROOT/deploy.sh" ]]; then
 fi
 
 echo "=== Проверка портов 80 и 443 ==="
-if ss -tlnp 2>/dev/null | grep -qE ':80 |:443 '; then
-  ss -tlnp | grep -E ':80 |:443 ' || true
+# Повторный запуск: 80/443 уже держит Caddy — это не конфликт.
+foreign_http_listeners() {
+  ss -tlnp 2>/dev/null | grep -E ':80 |:443 ' | grep -v caddy || true
+}
+n_foreign=$(foreign_http_listeners | wc -l)
+n_foreign="${n_foreign//[[:space:]]/}"
+if (( n_foreign > 0 )); then
+  foreign_http_listeners || true
   if [[ "$STOP_CONFLICTS" == "1" ]]; then
-    echo "Останавливаю типичные конфликтующие сервисы..."
+    echo "Останавливаю типичные конфликтующие сервисы (nginx/apache)..."
     systemctl stop nginx 2>/dev/null || true
     systemctl disable nginx 2>/dev/null || true
     systemctl stop apache2 2>/dev/null || true
     systemctl disable apache2 2>/dev/null || true
   fi
-  if ss -tlnp 2>/dev/null | grep -qE ':80 |:443 '; then
-    echo "Порты 80/443 всё ещё заняты. Освободи их вручную или установи STOP_CONFLICTS=0 и настрой прокси сам." >&2
-    ss -tlnp | grep -E ':80 |:443 ' || true
+  n2=$(foreign_http_listeners | wc -l)
+  n2="${n2//[[:space:]]/}"
+  if (( n2 > 0 )); then
+    echo "Порты 80/443 заняты не Caddy. Освободи их вручную или STOP_CONFLICTS=0." >&2
+    foreign_http_listeners || true
     exit 1
   fi
+elif ss -tlnp 2>/dev/null | grep -qE ':80 |:443 '; then
+  echo "Порты 80/443 уже слушает Caddy — ок."
 fi
 
 export DEBIAN_FRONTEND=noninteractive

@@ -102,6 +102,7 @@ class Habit(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
+    crm_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     main_goal: Mapped[str] = mapped_column(Text, nullable=False)
     micro_step: Mapped[str | None] = mapped_column(Text, nullable=True)
     reminder_time: Mapped[time | None] = mapped_column(Time, nullable=True)

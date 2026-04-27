@@ -106,6 +106,10 @@ ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
 
 Дальше создай `/etc/caddy/Caddyfile` как в скрипте (блок `habbit-flow.ru { reverse_proxy 127.0.0.1:5173 }`) и `systemctl enable --now caddy`.
 
+## Опционально: pgAdmin для преподавателя (read-only БД)
+
+См. **[scripts/PGADMIN_TEACHER.md](./PGADMIN_TEACHER.md)** — профиль `pgadmin`, пользователь `teacher_readonly`, SSH-туннель на порт 5050.
+
 ## Обновление кода позже
 
 ```bash

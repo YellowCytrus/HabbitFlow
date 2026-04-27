@@ -15,6 +15,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import CurrentUser
 from app.email_util import send_registration_code_email, send_verification_email
+from app.integrations.crm import sync_user_to_crm
 from app.models import (
     NotificationSettings,
     PendingRegistration,
@@ -184,6 +185,10 @@ def verify_registration(body: VerifyRegistrationRequest, db: Annotated[Session, 
     _ensure_defaults(db, user)
     db.commit()
     db.refresh(user)
+    try:
+        sync_user_to_crm(user, db)
+    except Exception:
+        log.exception("CRM sync failed after verify-registration for user %s", user.id)
     return TokenPair(
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
@@ -365,6 +370,10 @@ def oauth_callback(
         db.refresh(user)
         _ensure_defaults(db, user)
         db.commit()
+        try:
+            sync_user_to_crm(user, db)
+        except Exception:
+            log.exception("CRM sync failed after oauth registration for user %s", user.id)
     else:
         if avatar and not user.avatar_url:
             user.avatar_url = avatar

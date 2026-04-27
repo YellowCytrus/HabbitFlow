@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     vk_client_id: str = ""
     vk_client_secret: str = ""
     oauth_redirect_base: str = "http://localhost:8000"
+    twenty_webhook_secret: str = "sk_live_ZH8q3adHA7VPmwZFB0z0fe2d0RfyRTOB"
+    twenty_api_url: str = ""
+    twenty_api_key: str = ""
 
 
 settings = Settings()
