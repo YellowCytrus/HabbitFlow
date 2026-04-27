@@ -109,6 +109,7 @@ def sync_habit_to_crm(habit: Habit, db: Session) -> None:
             return
 
         title = habit.title
+        name = habit.title
         main_goal = habit.main_goal
         micro_step = habit.micro_step or ""
 
@@ -116,33 +117,33 @@ def sync_habit_to_crm(habit: Habit, db: Session) -> None:
             update_variants = [
                 (
                     """
-                    mutation UpdateHabit($id: UUID!, $title: String!, $mainGoal: String, $microStep: String) {
-                      updateHabit(id: $id, data: {title: $title, mainGoal: $mainGoal, microStep: $microStep}) {
+                    mutation UpdateHabit($id: UUID!, $name: String!, $title: String!, $mainGoal: String, $microStep: String) {
+                      updateHabit(id: $id, data: {name: $name, title: $title, mainGoal: $mainGoal, microStep: $microStep}) {
                         id
                       }
                     }
                     """,
-                    {"id": habit.crm_id, "title": title, "mainGoal": main_goal, "microStep": micro_step},
+                    {"id": habit.crm_id, "name": name, "title": title, "mainGoal": main_goal, "microStep": micro_step},
                 ),
                 (
                     """
-                    mutation UpdateHabit($id: UUID!, $title: String!, $main_goal: String, $micro_step: String) {
-                      updateHabit(id: $id, data: {title: $title, main_goal: $main_goal, micro_step: $micro_step}) {
+                    mutation UpdateHabit($id: UUID!, $name: String!, $title: String!, $main_goal: String, $micro_step: String) {
+                      updateHabit(id: $id, data: {name: $name, title: $title, main_goal: $main_goal, micro_step: $micro_step}) {
                         id
                       }
                     }
                     """,
-                    {"id": habit.crm_id, "title": title, "main_goal": main_goal, "micro_step": micro_step},
+                    {"id": habit.crm_id, "name": name, "title": title, "main_goal": main_goal, "micro_step": micro_step},
                 ),
                 (
                     """
-                    mutation UpdateHabit($id: UUID!, $title: String!) {
-                      updateHabit(id: $id, data: {title: $title}) {
+                    mutation UpdateHabit($id: UUID!, $name: String!, $title: String!) {
+                      updateHabit(id: $id, data: {name: $name, title: $title}) {
                         id
                       }
                     }
                     """,
-                    {"id": habit.crm_id, "title": title},
+                    {"id": habit.crm_id, "name": name, "title": title},
                 ),
             ]
             _try_graphql_variants(update_variants)
@@ -151,33 +152,33 @@ def sync_habit_to_crm(habit: Habit, db: Session) -> None:
         create_variants = [
             (
                 """
-                mutation CreateHabit($title: String!, $mainGoal: String, $microStep: String) {
-                  createHabit(data: {title: $title, mainGoal: $mainGoal, microStep: $microStep}) {
+                mutation CreateHabit($name: String!, $title: String!, $mainGoal: String, $microStep: String) {
+                  createHabit(data: {name: $name, title: $title, mainGoal: $mainGoal, microStep: $microStep}) {
                     id
                   }
                 }
                 """,
-                {"title": title, "mainGoal": main_goal, "microStep": micro_step},
+                {"name": name, "title": title, "mainGoal": main_goal, "microStep": micro_step},
             ),
             (
                 """
-                mutation CreateHabit($title: String!, $main_goal: String, $micro_step: String) {
-                  createHabit(data: {title: $title, main_goal: $main_goal, micro_step: $micro_step}) {
+                mutation CreateHabit($name: String!, $title: String!, $main_goal: String, $micro_step: String) {
+                  createHabit(data: {name: $name, title: $title, main_goal: $main_goal, micro_step: $micro_step}) {
                     id
                   }
                 }
                 """,
-                {"title": title, "main_goal": main_goal, "micro_step": micro_step},
+                {"name": name, "title": title, "main_goal": main_goal, "micro_step": micro_step},
             ),
             (
                 """
-                mutation CreateHabit($title: String!) {
-                  createHabit(data: {title: $title}) {
+                mutation CreateHabit($name: String!, $title: String!) {
+                  createHabit(data: {name: $name, title: $title}) {
                     id
                   }
                 }
                 """,
-                {"title": title},
+                {"name": name, "title": title},
             ),
         ]
         data = _try_graphql_variants(create_variants)
