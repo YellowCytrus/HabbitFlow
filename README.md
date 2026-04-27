@@ -1,4 +1,6 @@
-![Demo](demo.gif)
+<video src="demo.mkv" controls muted loop width="900"></video>
+
+[Скачать/открыть демо-видео](demo.mkv)
 
 # HabitFlow MVP
 
