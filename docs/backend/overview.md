@@ -26,13 +26,30 @@
 - `services/notification_self_healing.py`: снятие stale-lock и восстановление пропусков.
 - `services/calendar_agg.py`, `services/streak.py`, `services/recurrence.py`: вычисления read-модели.
 
+## Интеграции
+
+- `integrations/crm.py`: синхронизация с Twenty CRM через GraphQL (`/graphql`).
+- Используются env-переменные:
+  - `TWENTY_API_URL`
+  - `TWENTY_API_KEY`
+- Локальные связи с CRM:
+  - `User.external_id` + `User.crm_synced`
+  - `Habit.crm_id`
+- Базовые точки синхронизации:
+  - пользователь: после регистрации/первого OAuth
+  - привычка: после создания/обновления
+  - лог привычки: после `POST /habits/{habit_id}/logs`
+- Для CRM-зависимых действий в habits-роутере выполняется pre-check:
+  - если пользователь/привычка еще не синхронизированы, backend сначала пытается досинхронизировать их автоматически.
+
 ## Асинхронность и побочные эффекты
 
 - Большинство обработчиков синхронные; доступ к БД через sync SQLAlchemy.
 - Async используется точечно: middleware и загрузка файла.
-- Внешние side effects: SMTP/Resend email и HTTP-вызовы OAuth-провайдеров.
+- Внешние side effects: SMTP/Resend email, HTTP-вызовы OAuth-провайдеров, GraphQL-вызовы в Twenty CRM.
 
 См. также:
 - [Жизненный цикл запроса](../flows/request_lifecycle.md)
 - [Модели и валидация](../models/overview.md)
 - [Обработка ошибок](../errors/overview.md)
+- [Интеграция с CRM (Twenty)](../integrations/crm.md)
